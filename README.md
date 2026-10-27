@@ -24,11 +24,6 @@ Certificate validation remains enabled. The lockfile pins the tested dependencie
 
 ## First sign-in
 
-| Account                               | Username  | Initial password |
-| ------------------------------------- | --------- | ---------------- |
-| Owner                                 | `owner`   | `ajith123`       |
-| Sample cashier, development/demo only | `cashier` | `cashier123`     |
-
 Passwords must be changed on first sign-in. The owner also sets a 4–6 digit approval PIN; there is no default PIN. A new password must have at least eight characters and differ from the current password. The owner creates, disables and resets cashier accounts in **Team access**. Reset passwords require another change at sign-in. Five failed sign-in/PIN attempts trigger a one-minute cooldown.
 
 Development automatically adds sample data to an empty store: 40 bilingual products, six categories, five suppliers, ten customers, approximately four weeks of deterministic sample sales, expenses, expiry dates and a pending cheque. A packaged installation starts with the owner account and an empty catalogue.
