@@ -33,6 +33,7 @@ export default function Products() {
   const suppliers = useLoad(() => api('list', { entity: 'suppliers' })).data ?? [];
   const categories = bootstrap?.categories ?? [];
   const fields: Field[] = [
+    field('image', { type: 'image', full: true, hint: 'productImageHint' }),
     field('name_en', { required: true }),
     field('name_si', { required: true }),
     field('sku', { required: true }),
@@ -61,7 +62,6 @@ export default function Products() {
       type: 'select',
       options: suppliers.map((r) => ({ value: String(r.id), label: String(r.name) })),
     }),
-    field('image', { type: 'image' }),
     field('active', { type: 'checkbox' }),
     field('quick_access', { type: 'checkbox' }),
   ];

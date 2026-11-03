@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { ImagePlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { moneyFields } from './common';
 export interface Field {
@@ -40,6 +41,7 @@ export function RecordForm({
 }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false);
   const schema = z.object(
     Object.fromEntries(
       fields.map((f) => [
@@ -143,27 +145,61 @@ export function RecordForm({
               <input aria-label={t(f.key)} type="checkbox" {...register(f.key)} />
             ) : f.type === 'image' ? (
               <div className="image-input">
-                {watch(f.key) && <img alt={t(f.key)} src={String(watch(f.key))} />}
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    if (file.size > 1500000) {
-                      toast.error(t('validation'));
-                      return;
-                    }
-                    const reader = new FileReader();
-                    reader.onload = () => setValue(f.key, String(reader.result));
-                    reader.readAsDataURL(file);
-                  }}
-                />
-                {watch(f.key) && (
-                  <Button type="button" variant="ghost" onClick={() => setValue(f.key, '')}>
-                    {t('clearImage')}
-                  </Button>
-                )}
+                <div className="image-preview">
+                  {watch(f.key) ? (
+                    <img alt={t(f.key)} src={String(watch(f.key))} />
+                  ) : (
+                    <ImagePlus size={30} />
+                  )}
+                </div>
+                <div className="image-input-controls">
+                  <input
+                    type="file"
+                    aria-label={t(f.key)}
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={imageBusy}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file) return;
+                      if (
+                        !['image/png', 'image/jpeg', 'image/webp'].includes(file.type) ||
+                        file.size > 1500000
+                      ) {
+                        toast.error(t('imageFileHint'));
+                        return;
+                      }
+                      setImageBusy(true);
+                      try {
+                        const source = await new Promise<string>((resolve, reject) => {
+                          const reader = new FileReader();
+                          reader.onload = () => resolve(String(reader.result));
+                          reader.onerror = () => reject(new Error('imageReadFailed'));
+                          reader.readAsDataURL(file);
+                        });
+                        const image = new Image();
+                        image.src = source;
+                        await image.decode();
+                        setValue(f.key, source, { shouldDirty: true });
+                      } catch {
+                        toast.error(t('invalidImage'));
+                      } finally {
+                        setImageBusy(false);
+                      }
+                    }}
+                  />
+                  <small>{t(imageBusy ? 'loading' : 'imageFileHint')}</small>
+                  {watch(f.key) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={imageBusy}
+                      onClick={() => setValue(f.key, '', { shouldDirty: true })}
+                    >
+                      {t('clearImage')}
+                    </Button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className={f.type === 'money' ? 'money-input' : ''}>
@@ -196,7 +232,7 @@ export function RecordForm({
             {t('cancel')}
           </Button>
         )}
-        <Button disabled={busy}>{t(submit)}</Button>
+        <Button disabled={busy || imageBusy}>{t(submit)}</Button>
       </div>
     </form>
   );

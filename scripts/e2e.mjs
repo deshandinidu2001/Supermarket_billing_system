@@ -190,7 +190,11 @@ try {
   await page.getByRole('button', { name: 'Start shift', exact: true }).click();
   await page.getByRole('button', { name: 'Start shift', exact: true }).waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: /Nadu rice/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '1 kg', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Add to bill', exact: true }).click();
   await page.getByRole('button', { name: /Red dhal/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '1 kg', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Add to bill', exact: true }).click();
   await page.getByRole('button', { name: /Fresh milk/ }).click();
   await page.getByRole('button', { name: 'Add carry bag', exact: true }).click();
   await page.waitForTimeout(180);
@@ -227,7 +231,8 @@ try {
   await split.getByLabel('Reference', { exact: true }).fill('E2E-CARD-001');
   await split.getByRole('button', { name: 'Complete sale', exact: true }).click();
   await page.getByRole('heading', { name: 'Sale completed', exact: true }).waitFor();
-  const bill = (await invoke('list', { entity: 'sales' }))[0].bill_no;
+  // Demo sales can have later timestamps today; use the bill just completed.
+  const bill = (await page.getByRole('dialog').locator('.notice-green').innerText()).trim();
   const receipt = await invoke('receipt', { bill_no: bill });
   assert.equal(receipt.payments.length, 2);
   assert.equal((await invoke('loadCart')).lines.length, 0);

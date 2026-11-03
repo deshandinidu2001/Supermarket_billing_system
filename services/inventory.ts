@@ -10,28 +10,32 @@ export class Inventory {
     public store: Store,
     public auth: Auth,
   ) {}
-  search(query = '', limit = 100, active = true): Product[] {
+  search(query = '', limit = 100, active = true, categoryId?: string, offset = 0): Product[] {
     const user = this.auth.current();
     const term = query.trim();
-    const condition = active ? 'p.active=1' : '1=1';
+    const condition = (active ? 'p.active=1' : '1=1') + (categoryId ? ' AND p.category_id=?' : '');
+    const filters = categoryId ? [categoryId] : [];
     const select = `SELECT p.id,p.sku,p.name_en,p.name_si,p.category_id,c.name_en category_en,c.name_si category_si,p.unit,p.selling_price,p.mrp,p.reorder_level,p.active,p.quick_access,p.image,COALESCE((SELECT barcode FROM product_barcodes WHERE product_id=p.id ORDER BY created_at,id LIMIT 1),'') barcode,COALESCE((SELECT ROUND(SUM(qty),3) FROM batches WHERE product_id=p.id),0) stock${user.role === 'owner' ? ',p.cost_price,p.supplier_id' : ''} FROM products p JOIN categories c ON c.id=p.category_id`;
     if (term) {
       const exact = this.store.all<Product>(
         `${select} WHERE ${condition} AND (p.sku=? OR p.id IN (SELECT product_id FROM product_barcodes WHERE barcode=?)) LIMIT ?`,
+        ...filters,
         term,
         term,
         limit,
       );
-      if (exact.length) return exact;
+      if (exact.length) return exact.slice(offset);
     }
     const pattern = term.replace(/[\\%_]/g, '\\$&') + '%';
     return this.store.all<Product>(
-      `${select} WHERE ${condition} AND (p.name_en LIKE ? ESCAPE '\\' OR p.name_si LIKE ? ESCAPE '\\' OR p.sku LIKE ? ESCAPE '\\' OR p.id IN (SELECT product_id FROM product_barcodes WHERE barcode LIKE ? ESCAPE '\\')) ORDER BY p.quick_access DESC,p.name_en LIMIT ?`,
+      `${select} WHERE ${condition} AND (p.name_en LIKE ? ESCAPE '\\' OR p.name_si LIKE ? ESCAPE '\\' OR p.sku LIKE ? ESCAPE '\\' OR p.id IN (SELECT product_id FROM product_barcodes WHERE barcode LIKE ? ESCAPE '\\')) ORDER BY p.quick_access DESC,p.name_en,p.id LIMIT ? OFFSET ?`,
+      ...filters,
       term ? '%' + pattern : pattern,
       term ? '%' + pattern : pattern,
       pattern,
       pattern,
       limit,
+      offset,
     );
   }
   byIds(ids: string[]): Product[] {

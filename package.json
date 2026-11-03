@@ -16,6 +16,7 @@
     "test:e2e": "node scripts/e2e.mjs",
     "test:recovery": "node scripts/recovery-test.mjs",
     "test:dev": "node scripts/dev-smoke.mjs",
+    "test:catalogue": "node scripts/checkout-catalogue-smoke.mjs",
     "test:packaged": "node scripts/packaged-smoke.mjs",
     "seed": "node scripts/seed.mjs",
     "dist": "npm run build && electron-builder --win nsis",

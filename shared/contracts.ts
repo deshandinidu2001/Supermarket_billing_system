@@ -158,6 +158,8 @@ export const schemas = {
     query: text.default(''),
     limit: z.number().int().min(1).max(200).default(100),
     active: z.boolean().default(true),
+    category_id: id.optional(),
+    offset: z.number().int().min(0).max(10_000_000).default(0),
   }),
   saveProduct: productSchema,
   adjustStock: z.object({

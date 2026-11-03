@@ -102,7 +102,7 @@ async function dispatch(action: Action, raw: unknown): Promise<unknown> {
     }
     case 'products': {
       const d = schemas.products.parse(raw);
-      return inventory.search(d.query, d.limit, d.active);
+      return inventory.search(d.query, d.limit, d.active, d.category_id, d.offset);
     }
     case 'saveProduct':
       return inventory.save(schemas.saveProduct.parse(raw));

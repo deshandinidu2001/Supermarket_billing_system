@@ -41,6 +41,24 @@ async function run() {
   assert.equal(products.length, 40);
   assert.equal(inventory.search('නාඩු')[0].name_en, 'Nadu rice');
   assert.equal(inventory.search(products[0].barcode)[0].id, products[0].id);
+  const categoryProducts = inventory.search('', 200, true, products[0].category_id);
+  assert.ok(categoryProducts.length > 0);
+  assert.ok(categoryProducts.every((p) => p.category_id === products[0].category_id));
+  assert.equal(
+    inventory.search(products[0].barcode, 25, true, products[0].category_id)[0].id,
+    products[0].id,
+  );
+  assert.equal(
+    inventory.search(products[0].barcode, 25, true, products[0].category_id, 24).length,
+    0,
+  );
+  const firstPage = inventory.search('', 24);
+  const secondPage = inventory.search('', 24, true, undefined, 24);
+  assert.equal(new Set([...firstPage, ...secondPage].map((p) => p.id)).size, 40);
+  assert.deepEqual(
+    [...firstPage, ...secondPage].map((p) => p.id),
+    products.map((p) => p.id),
+  );
   assert.equal(inventory.assertLedger().length, 0);
   console.log('Phase 4: transactional GRN, supplier payments and cleared cheques');
   const supplier = String(management.list('suppliers')[0].id),
@@ -276,6 +294,9 @@ async function run() {
     }
   })();
   const timings: number[] = [];
+  const laterCataloguePage = inventory.search('', 24, true, categoryId, 1000);
+  assert.equal(laterCataloguePage.length, 24);
+  assert.ok(laterCataloguePage.every((p) => p.category_id === categoryId));
   for (let i = 0; i < 20; i++) {
     const start = performance.now();
     assert.ok(inventory.search(i % 2 ? 'product 19999' : '9990000019999').length);

@@ -28,6 +28,8 @@ import {
   LogOut,
   Menu,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   PackageCheck,
   ReceiptText,
   RotateCcw,
@@ -288,6 +290,9 @@ function Shell() {
   const location = useLocation();
   const [menu, setMenu] = useState(false),
     [alerts, setAlerts] = useState(false);
+  const [sidebarHidden, setSidebarHidden] = useState(
+    () => localStorage.getItem('ajith-sidebar-hidden') === 'true',
+  );
   const current = location.pathname.slice(1) || 'checkout';
   const count = data
     ? data.alerts.low + data.alerts.expiring + data.alerts.expired + data.alerts.cheques
@@ -318,11 +323,11 @@ function Shell() {
     };
   }, [data?.settings.idle_minutes, lock]);
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${sidebarHidden ? 'sidebar-hidden' : ''}`}>
       {menu && (
         <button className="sidebar-scrim" aria-label={t('close')} onClick={() => setMenu(false)} />
       )}
-      <aside className={`sidebar ${menu ? 'sidebar-open' : ''}`}>
+      <aside id="workspace-sidebar" className={`sidebar ${menu ? 'sidebar-open' : ''}`}>
         <NavLink to="/checkout" className="brand-link">
           <Brand small />
         </NavLink>
@@ -366,8 +371,26 @@ function Shell() {
               className="menu-button"
               onClick={() => setMenu((v) => !v)}
               aria-label={t('menu')}
+              aria-controls="workspace-sidebar"
+              aria-expanded={menu}
             >
               <Menu size={21} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="desktop-sidebar-button"
+              aria-label={t(sidebarHidden ? 'showSidebar' : 'hideSidebar')}
+              title={t(sidebarHidden ? 'showSidebar' : 'hideSidebar')}
+              aria-controls="workspace-sidebar"
+              aria-expanded={!sidebarHidden}
+              onClick={() => {
+                const hidden = !sidebarHidden;
+                setSidebarHidden(hidden);
+                localStorage.setItem('ajith-sidebar-hidden', String(hidden));
+              }}
+            >
+              {sidebarHidden ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
             </Button>
             <span className="header-shop">{data?.settings.shop_name ?? 'Ajith Super Market'}</span>
             <ChevronRight size={14} className="muted" />

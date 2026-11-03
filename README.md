@@ -56,19 +56,25 @@ The app icon is included in the repository. After changing `public/icon.svg`, ru
 ## Everyday use
 
 1. Start a shift in **Checkout** or **My shift**.
-2. Scan a barcode as keyboard input followed by Enter, search by either product name, or tap an everyday essential. Scanning an item already in the bill increases its quantity.
+2. Scan a barcode as keyboard input followed by Enter, or type a barcode/SKU and choose **Add item**. To add manually, browse **All products**, filter by category, or search by English/Sinhala name, SKU or barcode, then tap a product. The catalogue has 24 products per page with Previous/Next controls. Adding an item already in the bill increases its quantity.
 3. Set quantities and discounts, optionally choose a customer, redeem points or add bags. Pieces/packs require whole quantities; weight and volume quantities support three decimal places. Every valid cart change is committed to SQLite. The saved indicator changes only after that commit succeeds.
 4. Enter cash received, a card/QR/bank reference, customer credit, or an exact split of these recorded payment methods. **Complete sale** saves the sale, costs, payments and stock deductions in one transaction.
 5. Print the receipt or save a PDF. Last receipt and bill-number search support reprints. **My sales** lists a cashier's own sales for the current local date. The owner's sales list covers all staff.
 6. Hold bills with a name and resume them later. A held bill belongs to its user. Hold or clear the current bill before resuming another one or ending a shift.
 
-Keyboard shortcuts: **F2** search, **F3** customer, **F4** hold, **F5** held bills, **F8** complete sale, **F10** last receipt, **Esc** dismiss search/clear bill. Dialogs keep their own keyboard focus. At 1366×768, essentials scroll horizontally to leave the payment controls visible. The POS touch controls are at least 44 px. Smaller screens stack checkout and payment vertically.
+For measured products (kg/g or l/ml), adding by barcode, search or catalogue opens a measurement dialog. Enter the weight or volume, choose the unit, and review the automatically calculated price before **Add to bill**. For example, 500 g of rice priced at Rs. 230/kg costs Rs. 115 before discounts. Presets cover common amounts. Use the scale button below an item's quantity to edit its measurement; unit changes preserve the physical amount. Configured scale barcodes already contain a measurement and add it directly. **Selected items** appear above the product catalogue.
+
+Keyboard shortcuts: **F2** barcode entry, **F3** customer, **F4** hold, **F5** held bills, **F8** complete sale, **F10** last receipt, **Esc** dismiss search/clear bill. Dialogs keep their own keyboard focus. The catalogue scrolls within its own panel. Smaller screens stack checkout and payment vertically.
+
+Use the sidebar button at the top left to hide or show desktop navigation. This preference is remembered on the device. On smaller screens, the menu button opens navigation as an overlay.
 
 Language is remembered per user. The login screen remembers the last chosen language on the device. Theme is a device preference. Auto-lock defaults to 15 minutes; unsaved invalid form input is not committed, and saved/open bills remain recoverable after locking or restarting.
 
 ## Products, receiving and supplier accounts
 
-Products support multiple unique barcodes, a unique SKU, bilingual names, a unit, selling/latest cost/MRP, reorder threshold, supplier, active state, a local image and an everyday-essential flag. Deactivate products to preserve their sale history. A price above MRP shows a warning.
+Products support multiple unique barcodes, a unique SKU, bilingual names, a unit, selling/latest cost/MRP, reorder threshold, supplier, active state, a local image and a catalogue-priority flag. Deactivate products to preserve their sale history. A price above MRP shows a warning.
+
+In **Products & stock → Add product** (or Edit), choose a **Product image** before saving. PNG, JPG and WebP files up to 1.5 MB are supported. Preview, replace or remove the image in the form. Images are stored locally with the product, appear in the checkout catalogue, search results and current bill, and are included in database backups.
 
 Receive goods in **Purchases** using a supplier, unique supplier invoice number, date, quantities, costs and optional expiry dates. Each line creates a batch and stock movement. Latest product cost is updated without changing earlier sales. Supplier payments reduce outstanding purchases; pending and returned cheques do not. Clearing a cheque records its supplier payment once; cleared cheques cannot be changed or deleted.
 
@@ -171,6 +177,7 @@ npm test
 npm run test:integration
 npm run build
 npm run test:e2e
+npm run test:catalogue
 npm run test:recovery
 npm run test:dev
 npm run dist
@@ -180,6 +187,8 @@ npm run test:packaged
 `npm test` covers money/profit, FEFO/FIFO, split payments, bill rounding, returns, discounts, permissions, scale decoding and translation coverage. The integration script runs under Electron's Node runtime to use the correct SQLite ABI. It creates a temporary database, tests migrations, seed/auth, receiving, cheque clearing, stock rollback, idempotent sales, immutable historic costs, refunds, credit/points, all report queries, idle locking, automatic backup retention and persisted reopening. It also benchmarks search with 20,000 additional products and a 50-line sale.
 
 The Electron UI test uses an isolated temporary store, exercises first login, every owner route, expense CRUD, hold/resume, cart persistence after renderer reload, split checkout, bilingual PDF/Excel export, backup/restore, themes, responsive layout, cashier restrictions and zero HTTP requests. Artifacts are in `test-results/`; no test uses or resets the real store. The packaged application can additionally be smoke-tested with `node scripts/packaged-smoke.mjs` after `npm run dist`.
+
+`npm run test:catalogue` checks catalogue pagination, category filters, bilingual search, barcode/SKU and manual addition, remembered sidebar visibility, product image creation/removal and invalid image handling, plus desktop layout and dark theme. Run it after `npm run build`; it also uses an isolated temporary store.
 
 Observed on the development computer: native product search p95 around 7 ms across a 20,000-product catalogue; persisting and completing a 50-line bill around 10 ms. These measurements are local test results, not guarantees for every counter or USB drive.
 

@@ -7,16 +7,14 @@ import {
   Check,
   CheckCheck,
   ChevronDown,
-  Cookie,
   CreditCard,
   FileClock,
-  Leaf,
-  Milk,
   Package,
   Pause,
   Plus,
   Printer,
   QrCode,
+  Scale,
   ShieldCheck,
   ShoppingBag,
   ShoppingBasket,
@@ -44,6 +42,9 @@ import { Modal } from '../components/ui/dialog';
 import { Confirm, Empty, SearchBox, useLoad } from '../components/common';
 import ReceiptView from '../components/ReceiptView';
 import { RecordForm, field } from '../components/forms';
+import CheckoutCatalogue from '../components/CheckoutCatalogue';
+import MeasuredItemDialog from '../components/MeasuredItemDialog';
+import { isMeasuredUnit, type MeasuredUnit } from '../lib/measurement';
 const methodIcons = { cash: Banknote, card: CreditCard, qr: QrCode, credit: Wallet };
 function Numeric({
   value,
@@ -137,6 +138,10 @@ export default function Checkout() {
     [receipt, setReceipt] = useState<string | null>(null),
     [success, setSuccess] = useState(false);
   const [splitPayments, setSplitPayments] = useState<Payment[]>([]);
+  const [measured, setMeasured] = useState<{
+    product: Product & { unit: MeasuredUnit };
+    quantity?: number;
+  } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const requestRef = useRef(crypto.randomUUID());
   const transactionLock = useRef(false);
@@ -204,6 +209,13 @@ export default function Checkout() {
       lines: c.lines.map((l) => (l.product_id === id ? { ...l, [key]: value } : l)),
     }));
   }
+  async function selectProduct(product: Product) {
+    if (isMeasuredUnit(product.unit)) {
+      setQuery('');
+      setFocused(false);
+      setMeasured({ product: { ...product, unit: product.unit } });
+    } else await add(product);
+  }
   async function scan() {
     if (!query.trim()) return;
     const input = query.trim();
@@ -221,7 +233,7 @@ export default function Checkout() {
       }
     }
     if (found.length === 1 || found[0]?.barcode === input || found[0]?.sku === input)
-      await add(found[0]);
+      await selectProduct(found[0]);
     else if (found.length) {
       setResults(found);
       setFocused(true);
@@ -285,10 +297,6 @@ export default function Checkout() {
     return () => window.removeEventListener('keydown', listener);
   });
   if (!boot || !settings || !totals) return null;
-  const quick = products
-    .filter((p) => p.quick_access && p.active)
-    .sort((a, b) => a.name_en.localeCompare(b.name_en))
-    .slice(0, 12);
   return (
     <div className="checkout-page">
       <div className="checkout-title">
@@ -330,10 +338,14 @@ export default function Checkout() {
         <div className="checkout-left">
           <section className="panel cart-panel">
             <div className="scanner-area">
+              <label className="scanner-label" htmlFor="checkout-barcode">
+                {t('barcodeEntry')}
+              </label>
               <div className="scanner-input">
                 <Barcode size={24} />
                 <input
                   ref={searchRef}
+                  id="checkout-barcode"
                   value={query}
                   onChange={(e) => {
                     setQuery(e.target.value);
@@ -347,11 +359,15 @@ export default function Checkout() {
                       safe(scan);
                     }
                   }}
-                  placeholder={t('scanSearch')}
+                  placeholder={t('barcodePlaceholder')}
                   aria-label={t('scanSearch')}
                   autoFocus
                 />
                 <kbd>F2</kbd>
+                <Button size="sm" disabled={!query.trim()} onClick={() => safe(scan)}>
+                  <Plus size={16} />
+                  {t('addItem')}
+                </Button>
               </div>
               {query && focused && (
                 <div className="search-results">
@@ -360,10 +376,10 @@ export default function Checkout() {
                       key={p.id}
                       className="search-result"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => safe(() => add(p))}
+                      onClick={() => safe(() => selectProduct(p))}
                     >
                       <div className="product-glyph">
-                        <Package size={18} />
+                        {p.image ? <img src={p.image} alt="" /> : <Package size={18} />}
                       </div>
                       <span className="search-result-name">
                         <strong>{localName(p)}</strong>
@@ -382,6 +398,12 @@ export default function Checkout() {
                   {results.length === 0 && <Empty text={t('empty')} />}
                 </div>
               )}
+            </div>
+            <div className="bill-items-heading">
+              <h2>{t('selectedItems')}</h2>
+              <span>
+                {cart.lines.length} {t('items')}
+              </span>
             </div>
             {!cart.lines.length ? (
               <div className="empty-state cart-empty">
@@ -410,6 +432,9 @@ export default function Checkout() {
                     {totals.lines.map((line) => (
                       <tr key={line.product_id}>
                         <td className="product-name">
+                          {line.product.image && (
+                            <img className="cart-product-image" src={line.product.image} alt="" />
+                          )}
                           {localName(line.product)}
                           <span className="product-secondary">
                             {line.product.sku} · {t(`units.${line.product.unit}`)}
@@ -424,6 +449,22 @@ export default function Checkout() {
                             label={`${t('qty')} ${localName(line.product)}`}
                             onChange={(v) => editLine(line.product_id, 'qty', v)}
                           />
+                          {isMeasuredUnit(line.product.unit) && (
+                            <button
+                              type="button"
+                              className="edit-measurement"
+                              aria-label={`${t('editMeasurement')}: ${localName(line.product)}`}
+                              onClick={() => {
+                                if (isMeasuredUnit(line.product.unit))
+                                  setMeasured({
+                                    product: { ...line.product, unit: line.product.unit },
+                                    quantity: line.qty,
+                                  });
+                              }}
+                            >
+                              <Scale size={12} /> {t(`units.${line.product.unit}`)}
+                            </button>
+                          )}
                         </td>
                         <td className="discount-col">
                           <Numeric
@@ -485,35 +526,9 @@ export default function Checkout() {
               </div>
             </div>
           </section>
-          <section className="quick-section">
-            <div className="quick-section-heading">
-              <h2>{t('quickProducts')}</h2>
-              <small>{t('quickHint')}</small>
-            </div>
-            <div className="quick-grid">
-              {quick.map((p, i) => {
-                const Glyph = [Leaf, Package, ShoppingBasket, Cookie, Milk][i % 5];
-                return (
-                  <button className="quick-product" key={p.id} onClick={() => safe(() => add(p))}>
-                    {p.image ? (
-                      <img src={p.image} alt="" />
-                    ) : (
-                      <div className={`product-glyph glyph-${i % 4}`}>
-                        <Glyph size={21} />
-                      </div>
-                    )}
-                    <Plus size={14} className="quick-add" />
-                    <span className="quick-product-name">{localName(p)}</span>
-                    <span className="quick-product-price">
-                      {money(p.selling_price)}{' '}
-                      <span className="quick-product-unit">/ {t(`units.${p.unit}`)}</span>
-                    </span>
-                  </button>
-                );
-              })}
-              {!quick.length && <Empty text={t('empty')} />}
-            </div>
-          </section>
+          <div className="panel catalogue-panel">
+            <CheckoutCatalogue bootstrap={boot} onAdd={(p) => safe(() => selectProduct(p))} />
+          </div>
         </div>
         <aside className="panel payment-panel">
           <button className="customer-button" onClick={() => setCustomerOpen(true)}>
@@ -758,6 +773,23 @@ export default function Checkout() {
             }));
             setCustomer(row);
             setCustomerOpen(false);
+          }}
+        />
+      )}
+      {measured && (
+        <MeasuredItemDialog
+          product={measured.product}
+          initialQuantity={measured.quantity}
+          onClose={() => setMeasured(null)}
+          onSave={async (quantity) => {
+            if (measured.quantity == null) await add(measured.product, quantity);
+            else
+              await mutate((c) => ({
+                ...c,
+                lines: c.lines.map((line) =>
+                  line.product_id === measured.product.id ? { ...line, qty: quantity } : line,
+                ),
+              }));
           }}
         />
       )}
