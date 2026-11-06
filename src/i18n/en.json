@@ -554,5 +554,7 @@
   "audit.supplierReturn": "Supplier return recorded",
   "audit.cashierPinChanged": "Cashier PIN changed",
   "audit.pinLogin": "Cashier signed in with PIN",
-  "audit.pinLoginFailed": "Failed cashier PIN sign-in"
+  "audit.pinLoginFailed": "Failed cashier PIN sign-in",
+  "stockLimitReached": "All available stock in bill",
+  "manageCashiers": "Manage cashiers"
 }

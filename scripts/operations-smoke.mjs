@@ -183,6 +183,7 @@ try {
     ),
   );
   assert.equal(decoded.getText(), bill);
+  await barcode.scrollIntoViewIfNeeded();
   await page.screenshot({ path: 'test-results/receipt-barcode.png' });
   await modal.getByRole('button', { name: 'Close', exact: true }).last().click();
   await page.locator('.nav-link[href="#/sales"]').click();

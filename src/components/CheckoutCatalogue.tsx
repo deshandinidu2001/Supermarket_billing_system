@@ -136,7 +136,11 @@ export default function CheckoutCatalogue({
                   </strong>
                   <span className={`catalogue-stock ${product.stock <= 0 ? 'out-of-stock' : ''}`}>
                     {remaining <= 0
-                      ? t('outOfStock')
+                      ? t(
+                          (product.available_stock ?? product.stock) <= 0
+                            ? 'outOfStock'
+                            : 'stockLimitReached',
+                        )
                       : `${t('availableStock')}: ${remaining} ${t(`units.${product.unit}`)}`}
                   </span>
                 </button>

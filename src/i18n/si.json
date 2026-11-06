@@ -554,5 +554,7 @@
   "audit.supplierReturn": "සැපයුම්කරු ආපසු යැවීම සටහන් කරන ලදී",
   "audit.cashierPinChanged": "අයකැමි PIN වෙනස් කරන ලදී",
   "audit.pinLogin": "අයකැමි PIN මගින් පිවිසුණි",
-  "audit.pinLoginFailed": "අයකැමි PIN පිවිසුම අසාර්ථකයි"
+  "audit.pinLoginFailed": "අයකැමි PIN පිවිසුම අසාර්ථකයි",
+  "stockLimitReached": "ලබා ගත හැකි සියලු තොග බිල්පතේ ඇත",
+  "manageCashiers": "මුදල් අයකැමි කළමනාකරණය"
 }

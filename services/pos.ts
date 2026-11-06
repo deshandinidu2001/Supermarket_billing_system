@@ -169,6 +169,10 @@ export class POS {
       for (const line of totals.lines)
         if (!['kg', 'g', 'l', 'ml'].includes(line.product.unit) && !Number.isInteger(line.qty))
           throw new AppError('wholeQuantity');
+      if (
+        totals.lines.some((line) => line.qty > (line.product.available_stock ?? line.product.stock))
+      )
+        throw new AppError('insufficientStock');
       const change = validatePayments(data.payments, totals.total);
       // Retain the legacy sale reference without requiring a cashier shift workflow.
       const shift = this.store.get(

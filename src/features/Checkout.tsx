@@ -49,6 +49,7 @@ function Numeric({
   value,
   onChange,
   min = 0,
+  max,
   step = '.001',
   label,
   className,
@@ -57,6 +58,7 @@ function Numeric({
   value: number;
   onChange: (v: number) => void;
   min?: number;
+  max?: number;
   step?: string;
   label: string;
   className?: string;
@@ -69,6 +71,7 @@ function Numeric({
       className={className}
       type="number"
       min={min}
+      max={max}
       step={step}
       inputMode={integer ? 'numeric' : 'decimal'}
       onKeyDown={(e) => {
@@ -78,6 +81,7 @@ function Numeric({
       aria-label={label}
       onChange={(e) => {
         if (integer && e.target.value !== '' && !/^\d+$/.test(e.target.value)) return;
+        if (max != null && e.target.value !== '' && Number(e.target.value) > max) return;
         setDraft(e.target.value);
         if (
           e.target.value !== '' &&
@@ -155,7 +159,7 @@ export default function Checkout() {
       useStore.getState().cart.lines.find((line) => line.product_id === product.id)?.qty ?? 0;
     if (existing + quantity > (product.available_stock ?? product.stock)) {
       toast.error(t('insufficientStock'));
-      return;
+      throw new Error('insufficientStock');
     }
     cache([product]);
     await mutate((c) => {
@@ -432,6 +436,7 @@ export default function Checkout() {
                             <Numeric
                               value={line.qty}
                               min={isMeasuredUnit(line.product.unit) ? 0.001 : 1}
+                              max={line.product.available_stock ?? line.product.stock}
                               integer={!isMeasuredUnit(line.product.unit)}
                               step={
                                 ['kg', 'g', 'l', 'ml'].includes(line.product.unit) ? '.001' : '1'

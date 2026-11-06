@@ -287,6 +287,31 @@ async function run() {
     assert.match(Buffer.from(receipt.barcode.split(',')[1], 'base64').toString(), /<svg/);
     assert.ok(receiptHtml(receipt, 'en').includes(receipt.barcode));
     assert.equal(inventory.search('OPS-ZERO')[0].available_stock, 0);
+    // A legacy saved cart cannot use the administrative negative-stock setting to bypass sale limits.
+    pos.saveCart({ ...emptyCart(), lines: [{ product_id: pcs.id, qty: 1, discount_percent: 0 }] });
+    const open = store.get(
+      "SELECT id FROM held_bills WHERE user_id=? AND status='open'",
+      owner.id,
+    )!;
+    store.update('held_bills', String(open.id), { cart: JSON.stringify(cart) });
+    store.saveSettings({ ...store.settings(), allow_negative: true });
+    assert.throws(
+      () =>
+        pos.checkout({
+          request_id: uid(),
+          payments: [
+            {
+              method: 'cash',
+              amount: pcs.selling_price,
+              tendered: pcs.selling_price,
+              reference: '',
+            },
+          ],
+        }),
+      /insufficientStock/,
+    );
+    store.saveSettings({ ...store.settings(), allow_negative: false });
+    pos.saveCart(emptyCart());
 
     console.log('Operations: verified online backups and durable failed-verification status');
     store.saveSettings({

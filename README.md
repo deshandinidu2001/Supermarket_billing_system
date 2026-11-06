@@ -24,7 +24,7 @@ Certificate validation remains enabled. The lockfile pins the tested dependencie
 
 ## First sign-in
 
-Passwords must be changed on first sign-in. The owner also sets a 4–6 digit approval PIN; there is no default PIN. A new password must have at least eight characters and differ from the current password. The owner creates, disables and resets cashier accounts in **Team access**. Reset passwords require another change at sign-in. Five failed sign-in/PIN attempts trigger a one-minute cooldown.
+Passwords must be changed on first sign-in. The owner also sets a 4–6 digit approval PIN; there is no default PIN. A new password must have at least eight characters and differ from the current password. The owner creates, disables and resets cashier accounts through **Settings → Account names → Manage cashiers**. Reset passwords require another change at sign-in. Five failed sign-in/PIN attempts trigger a one-minute cooldown.
 
 Development automatically adds sample data to an empty store: 40 bilingual products, six categories, five suppliers, ten customers, approximately four weeks of deterministic sample sales, expenses, expiry dates and a pending cheque. A packaged installation starts with the owner account and an empty catalogue.
 
@@ -193,3 +193,21 @@ The Electron UI test uses an isolated temporary store, exercises first login, ev
 Observed on the development computer: native product search p95 around 7 ms across a 20,000-product catalogue; persisting and completing a 50-line bill around 10 ms. These measurements are local test results, not guarantees for every counter or USB drive.
 
 Inter and Noto Sans Sinhala are bundled with their font licences in `dist-electron/fonts`. No deployment, bank integration, hardware certification or code-signing is implied by this repository.
+
+## Stocktaking, supplier returns, PIN switching and backup checks
+
+- **Stocktaking:** start a count, enter physical quantities, save a draft, then review and apply. Blank counts leave products unchanged. If stock changes while a count is in progress, start a new count before applying it. Completed counts retain their recorded quantities and differences.
+- **Checkout quantities:** use +/− and the 1/3/5 presets for pieces and packs. Measured items retain their weight/volume editor. Sold-out and expired-only stock cannot be added; the remaining available quantity accounts for items already in the bill.
+- **Receipt barcodes:** previews, printouts and PDFs include a Code 128 barcode containing the bill number. Scan into **My sales** and press Enter for reprinting, or scan into **Returns** to retrieve the bill.
+- **Supplier returns:** select a supplier, purchased batches, return quantities and reason. The original purchase costs determine the credit. Posting reduces the corresponding batches and supplier balance, with a retained return history.
+- **Cashier PINs:** the owner sets or removes a separate 4–6 digit cashier PIN in **Settings → Account names**. The cashier must first complete their password change. Use **Switch cashier** in the header or **Cashier PIN** on the sign-in screen. Each account keeps its own unfinished bill. PIN attempts are rate limited; the owner approval PIN remains separate.
+- **Backup verification:** every new backup is checked for SQLite integrity, foreign keys, schema and readable account/bill/product records before being recorded as successful. Settings shows the latest verification outcome and provides **Verify latest backup**. Retained verified backups can be opened through the existing restore flow.
+
+Additional checks:
+
+```powershell
+npm run test:operations
+npm run test:operations:ui
+```
+
+Both use isolated temporary data. The UI check decodes the generated receipt barcode and exercises stock counts, supplier credits, quantity limits, PIN switching, saved bills and backup verification.

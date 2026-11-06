@@ -75,7 +75,7 @@ export function SearchBox({
         onChange={(e) => onChange(e.target.value)}
       />
       {value && (
-        <button aria-label={t('clear')} onClick={() => onChange('')}>
+        <button type="button" aria-label={t('clear')} onClick={() => onChange('')}>
           <X size={16} />
         </button>
       )}

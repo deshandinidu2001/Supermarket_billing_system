@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Database, Download, FolderOpen, KeyRound, RotateCcw, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,6 +14,7 @@ import { PageTitle, useLoad } from '../components/common';
 import { field, RecordForm, type Field } from '../components/forms';
 export default function Settings() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const data = useStore((s) => s.bootstrap)!;
   const [password, setPassword] = useState(false),
     [busy, setBusy] = useState(false);
@@ -121,7 +123,12 @@ export default function Settings() {
       <div className="settings-layout">
         <div className="settings-sections">
           <section className="panel settings-section account-names">
-            <h2>{t('accountNames')}</h2>
+            <div className="account-settings-heading">
+              <h2>{t('accountNames')}</h2>
+              <Button variant="outline" size="sm" onClick={() => navigate('/users')}>
+                {t('manageCashiers')}
+              </Button>
+            </div>
             <p className="record-description">{t('accountNamesHint')}</p>
             {users.data?.map((account) => (
               <div className="account-name-row" key={String(account.id)}>
