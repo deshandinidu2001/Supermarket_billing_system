@@ -162,6 +162,7 @@ export const schemas = {
     offset: z.number().int().min(0).max(10_000_000).default(0),
   }),
   saveProduct: productSchema,
+  removeProduct: z.object({ product_id: id }),
   adjustStock: z.object({
     product_id: id,
     batch_id: id.nullable(),
@@ -287,6 +288,7 @@ export interface Outputs {
   products: Product[];
   productDetails: Product & { barcodes: string[] };
   saveProduct: string;
+  removeProduct: boolean;
   adjustStock: boolean;
   batches: Row[];
   list: Row[];

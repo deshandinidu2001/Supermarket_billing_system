@@ -40,7 +40,6 @@ import {
   Store,
   Sun,
   Truck,
-  Users,
   Wallet,
   WifiOff,
 } from 'lucide-react';
@@ -60,7 +59,6 @@ const Purchases = lazy(() => import('./features/Purchases'));
 const Returns = lazy(() => import('./features/Returns'));
 const Sales = lazy(() => import('./features/Sales'));
 const Held = lazy(() => import('./features/Held'));
-const Shift = lazy(() => import('./features/Shift'));
 const Reports = lazy(() => import('./features/Reports'));
 const Settings = lazy(() => import('./features/Settings'));
 class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -266,17 +264,14 @@ const entries = [
   { path: 'dashboard', icon: LayoutDashboard, owner: true },
   { path: 'held', icon: FileClock, owner: false },
   { path: 'returns', icon: RotateCcw, owner: false },
-  { path: 'shift', icon: Wallet, owner: false },
   { path: 'sales', icon: ReceiptText, owner: false },
   { path: 'products', icon: Boxes, owner: true },
   { path: 'categories', icon: ClipboardList, owner: true },
   { path: 'suppliers', icon: Truck, owner: true },
   { path: 'purchases', icon: PackageCheck, owner: true },
   { path: 'cheques', icon: CreditCard, owner: true },
-  { path: 'customers', icon: Users, owner: true },
   { path: 'expenses', icon: Wallet, owner: true },
   { path: 'reports', icon: BarChart3, owner: true },
-  { path: 'users', icon: ShieldCheck, owner: true },
   { path: 'audit', icon: Activity, owner: true },
   { path: 'settings', icon: Settings2, owner: true },
 ];
@@ -441,22 +436,13 @@ function Shell() {
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/held" element={<Held />} />
                 <Route path="/returns" element={<Returns />} />
-                <Route path="/shift" element={<Shift />} />
                 <Route path="/sales" element={<Sales />} />
                 {user.role === 'owner' && (
                   <>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/products" element={<Products />} />
                     {(
-                      [
-                        'categories',
-                        'suppliers',
-                        'customers',
-                        'cheques',
-                        'expenses',
-                        'users',
-                        'audit',
-                      ] as const
+                      ['categories', 'suppliers', 'cheques', 'expenses', 'users', 'audit'] as const
                     ).map((entity) => (
                       <Route
                         key={entity}

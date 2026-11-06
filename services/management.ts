@@ -25,7 +25,7 @@ export class Management {
         );
       if (entity === 'sales')
         return this.store.all(
-          "SELECT s.id,s.bill_no,s.total,s.status,s.created_at,u.display_name cashier FROM sales s JOIN users u ON u.id=s.user_id WHERE user_id=? AND date(s.created_at,'localtime')=? AND bill_no LIKE ? ORDER BY s.created_at DESC LIMIT 200",
+          "SELECT s.id,s.bill_no,s.total,s.status,s.created_at,u.display_name cashier FROM sales s JOIN users u ON u.id=s.user_id WHERE user_id=? AND date(s.created_at,'localtime')=? AND bill_no LIKE ? ORDER BY s.rowid DESC LIMIT 200",
           user.id,
           today(),
           like,
@@ -60,7 +60,7 @@ export class Management {
         );
       case 'sales':
         return this.store.all(
-          'SELECT s.*,u.display_name cashier FROM sales s JOIN users u ON u.id=s.user_id WHERE bill_no LIKE ? ORDER BY s.created_at DESC LIMIT 500',
+          'SELECT s.*,u.display_name cashier FROM sales s JOIN users u ON u.id=s.user_id WHERE bill_no LIKE ? ORDER BY s.rowid DESC LIMIT 500',
           like,
         );
       case 'held_bills':

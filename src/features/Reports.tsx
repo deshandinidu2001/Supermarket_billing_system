@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Download, Printer } from 'lucide-react';
+import { Download, Printer, ReceiptText } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { dateString, rangeFor, safe } from '../lib/utils';
 import { reportNames, type ReportName } from '../../shared/contracts';
 import { Button } from '../components/ui/button';
+import ReceiptView from '../components/ReceiptView';
 import {
   DataTable,
   ErrorState,
@@ -20,10 +21,14 @@ export default function Reports() {
   const [params] = useSearchParams();
   const initial = params.get('report');
   const [name, setName] = useState<ReportName>(
-    reportNames.includes(initial as ReportName) ? (initial as ReportName) : 'sales',
+    initial !== 'credit' && reportNames.includes(initial as ReportName)
+      ? (initial as ReportName)
+      : 'sales',
   );
   const [range, setRange] = useState(rangeFor('month'));
   const [busy, setBusy] = useState(false);
+  const [bill, setBill] = useState<string | null>(null);
+  const latest = useLoad(() => api('list', { entity: 'sales' }));
   const { data, error, reload } = useLoad(
     () => api('report', { name, ...range }),
     [name, range.from, range.to],
@@ -50,10 +55,20 @@ export default function Reports() {
         title={t('nav.reports')}
         hint={t('reportsHint')}
         actions={
-          <Button variant="outline" onClick={() => exportFile('pdf', true)} disabled={busy}>
-            <Printer size={16} />
-            {t('dailySummary')}
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              disabled={!latest.data?.length}
+              onClick={() => setBill(String(latest.data![0].bill_no))}
+            >
+              <ReceiptText size={16} />
+              {t('lastReceipt')}
+            </Button>
+            <Button variant="outline" onClick={() => exportFile('pdf', true)} disabled={busy}>
+              <Printer size={16} />
+              {t('dailySummary')}
+            </Button>
+          </>
         }
       />
       <div className="report-toolbar">
@@ -62,11 +77,13 @@ export default function Reports() {
           aria-label={t('report')}
           onChange={(e) => setName(e.target.value as ReportName)}
         >
-          {reportNames.map((n) => (
-            <option key={n} value={n}>
-              {t(`report.${n}`)}
-            </option>
-          ))}
+          {reportNames
+            .filter((n) => n !== 'credit')
+            .map((n) => (
+              <option key={n} value={n}>
+                {t(`report.${n}`)}
+              </option>
+            ))}
         </select>
         <RangeFilter value={range} onChange={setRange} />
         <div className="report-actions">
@@ -98,10 +115,28 @@ export default function Reports() {
         ) : !data ? (
           <Loading />
         ) : (
-          <DataTable rows={data.rows} columns={data.columns} />
+          <DataTable
+            rows={data.rows}
+            columns={data.columns}
+            actions={
+              name === 'sales'
+                ? (row) => (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBill(String(row.bill_no))}
+                    >
+                      <ReceiptText size={14} />
+                      {t('billDetails')}
+                    </Button>
+                  )
+                : undefined
+            }
+          />
         )}
       </section>
       <p className="report-note">{t('stockAsOf')}</p>
+      {bill && <ReceiptView billNo={bill} onClose={() => setBill(null)} />}
     </>
   );
 }

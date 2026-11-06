@@ -6,7 +6,6 @@ import {
   Barcode,
   Check,
   CheckCheck,
-  ChevronDown,
   CreditCard,
   FileClock,
   Package,
@@ -20,8 +19,6 @@ import {
   ShoppingBasket,
   Split,
   Trash2,
-  UserRound,
-  Wallet,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -35,17 +32,16 @@ import {
   type Payment,
   type PaymentMethod,
   type Product,
-  type Row,
 } from '../../shared/types';
 import { Button } from '../components/ui/button';
 import { Modal } from '../components/ui/dialog';
-import { Confirm, Empty, SearchBox, useLoad } from '../components/common';
+import { Confirm, Empty } from '../components/common';
 import ReceiptView from '../components/ReceiptView';
 import { RecordForm, field } from '../components/forms';
 import CheckoutCatalogue from '../components/CheckoutCatalogue';
 import MeasuredItemDialog from '../components/MeasuredItemDialog';
 import { isMeasuredUnit, type MeasuredUnit } from '../lib/measurement';
-const methodIcons = { cash: Banknote, card: CreditCard, qr: QrCode, credit: Wallet };
+const methodIcons = { cash: Banknote, card: CreditCard, qr: QrCode };
 function Numeric({
   value,
   onChange,
@@ -84,41 +80,6 @@ function Numeric({
     />
   );
 }
-function CustomerPicker({
-  onClose,
-  onSelect,
-}: {
-  onClose: () => void;
-  onSelect: (row: Row | null) => void;
-}) {
-  const { t } = useTranslation();
-  const [q, setQ] = useState('');
-  const { data } = useLoad(() => api('list', { entity: 'customers', query: q }), [q]);
-  return (
-    <Modal open onClose={onClose} title={t('selectCustomer')}>
-      <SearchBox value={q} onChange={setQ} placeholder={t('customerSearch')} />
-      <div className="customer-list">
-        <button className="customer-option" onClick={() => onSelect(null)}>
-          <strong>{t('walkIn')}</strong>
-          <UserRound size={18} />
-        </button>
-        {data?.map((row) => (
-          <button className="customer-option" key={String(row.id)} onClick={() => onSelect(row)}>
-            <span>
-              <strong>{row.name}</strong>
-              <small>{row.phone}</small>
-            </span>
-            <span>
-              {row.points} {t('points')}
-              <small>{money(Number(row.balance))}</small>
-            </span>
-          </button>
-        ))}
-        {data?.length === 0 && <Empty />}
-      </div>
-    </Modal>
-  );
-}
 export default function Checkout() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -126,8 +87,6 @@ export default function Checkout() {
   const [query, setQuery] = useState(''),
     [results, setResults] = useState<Product[]>([]),
     [focused, setFocused] = useState(false),
-    [customerOpen, setCustomerOpen] = useState(false),
-    [customer, setCustomer] = useState<Row | null>(null),
     [hold, setHold] = useState(false),
     [clear, setClear] = useState(false),
     [split, setSplit] = useState(false),
@@ -166,15 +125,6 @@ export default function Checkout() {
       clearTimeout(timer);
     };
   }, [query, cache]);
-  useEffect(() => {
-    if (!cart.customer_id) {
-      setCustomer(null);
-      return;
-    }
-    void api('list', { entity: 'customers', query: '' })
-      .then((rows) => setCustomer(rows.find((r) => r.id === cart.customer_id) ?? null))
-      .catch(() => {});
-  }, [cart.customer_id]);
   const settings = boot?.settings;
   let totals: ReturnType<typeof cartTotals> | null = null;
   try {
@@ -277,7 +227,6 @@ export default function Checkout() {
     const listener = (e: KeyboardEvent) => {
       const actions: Record<string, () => void> = {
         F2: () => searchRef.current?.focus(),
-        F3: () => setCustomerOpen(true),
         F4: () => cart.lines.length && setHold(true),
         F5: () => navigate('/held'),
         F8: () => safe(() => pay()),
@@ -316,26 +265,11 @@ export default function Checkout() {
           </Button>
         </div>
       </div>
-      {!boot.shift && (
-        <div className="notice notice-amber">
-          <Wallet size={17} />
-          <span style={{ flex: 1 }}>{t('noActiveShift')}</span>
-          <Button
-            size="sm"
-            onClick={() =>
-              safe(async () => {
-                await api('shift', { action: 'start' });
-                await useStore.getState().boot();
-                toast.success(t('shiftOpen'));
-              })
-            }
-          >
-            {t('startShift')}
-          </Button>
-        </div>
-      )}
       <div className="checkout-grid">
-        <div className="checkout-left">
+        <section className="panel catalogue-panel">
+          <CheckoutCatalogue bootstrap={boot} onAdd={(p) => safe(() => selectProduct(p))} />
+        </section>
+        <div className="checkout-right">
           <section className="panel cart-panel">
             <div className="scanner-area">
               <label className="scanner-label" htmlFor="checkout-barcode">
@@ -526,227 +460,188 @@ export default function Checkout() {
               </div>
             </div>
           </section>
-          <div className="panel catalogue-panel">
-            <CheckoutCatalogue bootstrap={boot} onAdd={(p) => safe(() => selectProduct(p))} />
-          </div>
-        </div>
-        <aside className="panel payment-panel">
-          <button className="customer-button" onClick={() => setCustomerOpen(true)}>
-            <div className="customer-circle">
-              <UserRound size={18} />
-            </div>
-            <div>
-              <strong>{customer?.name ?? t('walkIn')}</strong>
-              <small>{customer?.phone ?? t('selectCustomer')}</small>
-            </div>
-            <ChevronDown size={15} />
-          </button>
-          <div className="payment-inner">
-            <h2 className="payment-label">
-              {t('currentBill')}{' '}
-              <span className="muted" style={{ fontWeight: 400, fontSize: 10 }}>
-                ({cart.lines.length} {t('items')})
-              </span>
-            </h2>
-            <div className="total-row">
-              <span>{t('subtotal')}</span>
-              <span>{money(totals.subtotal)}</span>
-            </div>
-            {totals.lineDiscount > 0 && (
-              <div className="total-row">
-                <span>{t('line_discount')}</span>
-                <span>− {money(totals.lineDiscount)}</span>
-              </div>
-            )}
-            <div className="total-row">
-              <span>{t('bill_discount')}</span>
-              <div className="discount-control">
-                <Numeric
-                  value={
-                    cart.discount_type === 'amount'
-                      ? cart.discount_value / 100
-                      : cart.discount_value
-                  }
-                  step=".01"
-                  label={t('bill_discount')}
-                  onChange={(v) =>
-                    changeCart((c) => ({
-                      ...c,
-                      discount_value: c.discount_type === 'amount' ? Math.round(v * 100) : v,
-                    }))
-                  }
-                />
-                <select
-                  aria-label={t('discount_type')}
-                  value={cart.discount_type}
-                  onChange={(e) =>
-                    changeCart((c) => ({
-                      ...c,
-                      discount_type: e.target.value as Cart['discount_type'],
-                      discount_value: 0,
-                    }))
-                  }
-                >
-                  <option value="percent">%</option>
-                  <option value="amount">Rs.</option>
-                </select>
-              </div>
-            </div>
-            {user?.role === 'cashier' && (
-              <div className="total-row">
-                <span>{t('discountCap')}</span>
-                <small>{settings.max_discount}%</small>
-              </div>
-            )}
-            {customer && (
-              <>
+          <aside className="panel payment-panel">
+            <div className="payment-inner">
+              <h2 className="payment-label">
+                {t('currentBill')}{' '}
+                <span className="muted" style={{ fontWeight: 400, fontSize: 10 }}>
+                  ({cart.lines.length} {t('items')})
+                </span>
+              </h2>
+              <div className="billing-summary">
                 <div className="total-row">
-                  <span>
-                    {t('points')} ({customer.points})
-                  </span>
-                  <div className="discount-control">
-                    <Numeric
-                      label={t('redeem_points')}
-                      step="1"
-                      value={cart.redeem_points}
-                      onChange={(v) => changeCart((c) => ({ ...c, redeem_points: v }))}
-                    />
-                  </div>
+                  <span>{t('subtotal')}</span>
+                  <span>{money(totals.subtotal)}</span>
                 </div>
-                {totals.loyaltyDiscount > 0 && (
+                {totals.lineDiscount > 0 && (
                   <div className="total-row">
-                    <span>{t('loyalty_discount')}</span>
-                    <span>− {money(totals.loyaltyDiscount)}</span>
+                    <span>{t('line_discount')}</span>
+                    <span>− {money(totals.lineDiscount)}</span>
                   </div>
                 )}
-              </>
-            )}
-            <div className="bag-control">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => changeCart((c) => ({ ...c, bag_qty: c.bag_qty + 1 }))}
-              >
-                <ShoppingBag size={14} />
-                {t('bag')}
-                <Plus size={12} />
-              </Button>
-              {cart.bag_qty > 0 && (
-                <span className="bag-count">
-                  <button
-                    aria-label={t('remove')}
-                    onClick={() =>
-                      changeCart((c) => ({ ...c, bag_qty: Math.max(0, c.bag_qty - 1) }))
-                    }
-                  >
-                    −
-                  </button>{' '}
-                  {cart.bag_qty} · {money(totals.bagTotal)}
-                </span>
-              )}
-            </div>
-            {totals.rounding !== 0 && (
-              <div className="total-row">
-                <span>{t('rounding')}</span>
-                <span>{money(totals.rounding)}</span>
-              </div>
-            )}
-            <div className="amount-due">
-              <span>{t('amountDue')}</span>
-              <strong>{money(amount)}</strong>
-            </div>
-            <div className="payment-methods">
-              {(['cash', 'card', 'qr', 'credit'] as const).map((m) => {
-                const Icon = methodIcons[m];
-                return (
-                  <button
-                    key={m}
-                    className={`method-button ${method === m ? 'method-selected' : ''}`}
-                    onClick={() => setMethod(m)}
-                  >
-                    <Icon size={15} />
-                    {t(m)}
-                  </button>
-                );
-              })}
-            </div>
-            {method === 'cash' ? (
-              <>
-                <label className="cash-tender">
-                  <span>{t('tendered')}</span>
-                  <div className="money-input">
-                    <span>Rs.</span>
-                    <input
-                      type="number"
-                      min="0"
+                <div className="total-row">
+                  <span>{t('bill_discount')}</span>
+                  <div className="discount-control">
+                    <Numeric
+                      value={
+                        cart.discount_type === 'amount'
+                          ? cart.discount_value / 100
+                          : cart.discount_value
+                      }
                       step=".01"
-                      value={tender}
-                      placeholder="0.00"
-                      onChange={(e) => setTender(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') safe(() => pay());
-                      }}
+                      label={t('bill_discount')}
+                      onChange={(v) =>
+                        changeCart((c) => ({
+                          ...c,
+                          discount_value: c.discount_type === 'amount' ? Math.round(v * 100) : v,
+                        }))
+                      }
                     />
+                    <select
+                      aria-label={t('discount_type')}
+                      value={cart.discount_type}
+                      onChange={(e) =>
+                        changeCart((c) => ({
+                          ...c,
+                          discount_type: e.target.value as Cart['discount_type'],
+                          discount_value: 0,
+                        }))
+                      }
+                    >
+                      <option value="percent">%</option>
+                      <option value="amount">Rs.</option>
+                    </select>
                   </div>
-                </label>
-                <div className="quick-cash">
-                  {[50000, 100000, 200000, 500000].map((v) => (
-                    <button key={v} onClick={() => setTender(String(v / 100))}>
-                      {(v / 100).toLocaleString('en-LK')}
-                    </button>
-                  ))}
-                  <button onClick={() => setTender((amount / 100).toFixed(2))}>
-                    <Check size={11} />
-                  </button>
                 </div>
-                <div className="change-row">
-                  <span>{t('change')}</span>
-                  <strong>{money(Math.max(0, Math.round(cash) - amount))}</strong>
+                {user?.role === 'cashier' && (
+                  <div className="total-row">
+                    <span>{t('discountCap')}</span>
+                    <small>{settings.max_discount}%</small>
+                  </div>
+                )}
+                <div className="bag-control">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => changeCart((c) => ({ ...c, bag_qty: c.bag_qty + 1 }))}
+                  >
+                    <ShoppingBag size={14} />
+                    {t('bag')}
+                    <Plus size={12} />
+                  </Button>
+                  {cart.bag_qty > 0 && (
+                    <span className="bag-count">
+                      <button
+                        aria-label={t('remove')}
+                        onClick={() =>
+                          changeCart((c) => ({ ...c, bag_qty: Math.max(0, c.bag_qty - 1) }))
+                        }
+                      >
+                        −
+                      </button>{' '}
+                      {cart.bag_qty} · {money(totals.bagTotal)}
+                    </span>
+                  )}
                 </div>
-              </>
-            ) : ['card', 'qr'].includes(method) ? (
-              <label className="cash-tender">
-                <span>{t('reference')}</span>
-                <input value={reference} onChange={(e) => setReference(e.target.value)} />
-              </label>
-            ) : (
-              <div className="notice notice-green">
-                {customer
-                  ? `${customer.name} · ${money(Number(customer.credit_limit) - Number(customer.balance))}`
-                  : t('customerRequired')}
+                {totals.rounding !== 0 && (
+                  <div className="total-row">
+                    <span>{t('rounding')}</span>
+                    <span>{money(totals.rounding)}</span>
+                  </div>
+                )}
+                <div className="amount-due">
+                  <span>{t('amountDue')}</span>
+                  <strong>{money(amount)}</strong>
+                </div>
               </div>
-            )}
-            <Button
-              className="pay-button"
-              disabled={!cart.lines.length || paying || saving || !boot.shift}
-              onClick={() => safe(() => pay())}
-            >
-              <span>{t(paying ? 'loading' : 'pay')}</span>
-              <kbd>F8</kbd>
-            </Button>
-            <Button
-              variant="ghost"
-              className="split-button"
-              disabled={!cart.lines.length}
-              onClick={() => {
-                setSplitPayments([{ method: 'cash', amount, tendered: amount, reference: '' }]);
-                setSplit(true);
-              }}
-            >
-              <Split size={14} />
-              {t('split')}
-            </Button>
-          </div>
-          <div className="payment-panel-foot">
-            <ShieldCheck size={12} />
-            {t('localData')}
-          </div>
-        </aside>
+              <div className="billing-payment">
+                <div className="payment-methods">
+                  {(['cash', 'card', 'qr'] as const).map((m) => {
+                    const Icon = methodIcons[m];
+                    return (
+                      <button
+                        key={m}
+                        className={`method-button ${method === m ? 'method-selected' : ''}`}
+                        onClick={() => setMethod(m)}
+                      >
+                        <Icon size={15} />
+                        {t(m)}
+                      </button>
+                    );
+                  })}
+                </div>
+                {method === 'cash' ? (
+                  <>
+                    <label className="cash-tender">
+                      <span>{t('tendered')}</span>
+                      <div className="money-input">
+                        <span>Rs.</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step=".01"
+                          value={tender}
+                          placeholder="0.00"
+                          onChange={(e) => setTender(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') safe(() => pay());
+                          }}
+                        />
+                      </div>
+                    </label>
+                    <div className="quick-cash">
+                      {[50000, 100000, 200000, 500000].map((v) => (
+                        <button key={v} onClick={() => setTender(String(v / 100))}>
+                          {(v / 100).toLocaleString('en-LK')}
+                        </button>
+                      ))}
+                      <button onClick={() => setTender((amount / 100).toFixed(2))}>
+                        <Check size={11} />
+                      </button>
+                    </div>
+                    <div className="change-row">
+                      <span>{t('change')}</span>
+                      <strong>{money(Math.max(0, Math.round(cash) - amount))}</strong>
+                    </div>
+                  </>
+                ) : (
+                  <label className="cash-tender">
+                    <span>{t('reference')}</span>
+                    <input value={reference} onChange={(e) => setReference(e.target.value)} />
+                  </label>
+                )}
+                <Button
+                  className="pay-button"
+                  disabled={!cart.lines.length || paying || saving}
+                  onClick={() => safe(() => pay())}
+                >
+                  <span>{t(paying ? 'loading' : 'pay')}</span>
+                  <kbd>F8</kbd>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="split-button"
+                  disabled={!cart.lines.length}
+                  onClick={() => {
+                    setSplitPayments([{ method: 'cash', amount, tendered: amount, reference: '' }]);
+                    setSplit(true);
+                  }}
+                >
+                  <Split size={14} />
+                  {t('split')}
+                </Button>
+              </div>
+            </div>
+            <div className="payment-panel-foot">
+              <ShieldCheck size={12} />
+              {t('localData')}
+            </div>
+          </aside>
+        </div>
       </div>
       <div className="keyboard-bar">
         {[
           ['F2', 'search'],
-          ['F3', 'customer'],
           ['F4', 'hold'],
           ['F5', 'resume'],
           ['F8', 'pay'],
@@ -762,20 +657,6 @@ export default function Checkout() {
           {settings.counter_id} · {t('offline')}
         </small>
       </div>
-      {customerOpen && (
-        <CustomerPicker
-          onClose={() => setCustomerOpen(false)}
-          onSelect={(row) => {
-            changeCart((c) => ({
-              ...c,
-              customer_id: row ? String(row.id) : null,
-              redeem_points: 0,
-            }));
-            setCustomer(row);
-            setCustomerOpen(false);
-          }}
-        />
-      )}
       {measured && (
         <MeasuredItemDialog
           product={measured.product}
@@ -835,7 +716,7 @@ export default function Checkout() {
                   )
                 }
               >
-                {(['cash', 'card', 'qr', 'credit'] as const).map((m) => (
+                {(['cash', 'card', 'qr'] as const).map((m) => (
                   <option key={m} value={m}>
                     {t(m)}
                   </option>

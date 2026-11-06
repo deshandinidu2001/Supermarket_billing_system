@@ -177,17 +177,7 @@ export class Reports {
         break;
     }
     const columns: Record<ReportName, string[]> = {
-      sales: [
-        'bill_no',
-        'created_at',
-        'cashier',
-        'customer',
-        'total',
-        'refunds',
-        'cost',
-        'profit',
-        'status',
-      ],
+      sales: ['bill_no', 'created_at', 'cashier', 'total', 'refunds', 'cost', 'profit', 'status'],
       products: ['name_en', 'name_si', 'category', 'quantity', 'revenue', 'cost', 'profit'],
       bottom: ['name_en', 'name_si', 'quantity', 'revenue', 'profit'],
       profitProducts: ['name_en', 'name_si', 'quantity', 'revenue', 'cost', 'profit'],

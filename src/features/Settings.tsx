@@ -51,8 +51,6 @@ export default function Settings() {
         }),
         field('max_discount', { type: 'number', required: true, min: 0, max: 100 }),
         field('bag_price', { required: true, min: 0 }),
-        field('loyalty_earn', { type: 'number', required: true, min: 0 }),
-        field('loyalty_value', { type: 'money', required: true, min: 0 }),
       ],
     },
     {

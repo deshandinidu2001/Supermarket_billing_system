@@ -87,7 +87,7 @@
   "quickProducts": "Everyday essentials",
   "quickHint": "Tap to add to the bill",
   "emptyCart": "Ready for your first item",
-  "emptyCartHint": "Scan a barcode or select a product below to start the bill.",
+  "emptyCartHint": "Select a product on the left or scan a barcode to start the bill.",
   "walkIn": "Walk-in customer",
   "selectCustomer": "Choose a customer",
   "customerSearch": "Search customers by name or phone",
@@ -489,5 +489,11 @@
   "measurementDiscountHint": "The bill applies any item or bill discounts after this calculation.",
   "addToBill": "Add to bill",
   "updateQuantity": "Update quantity",
-  "editMeasurement": "Edit measurement"
+  "editMeasurement": "Edit measurement",
+  "billDetails": "Bill details",
+  "removeProduct": "Remove product",
+  "removeProductHint": "Remove from the active catalogue? Past bills and stock records will be kept.",
+  "showRemovedProducts": "Include removed products",
+  "productRemoved": "Product removed",
+  "audit.productRemoved": "Product removed"
 }

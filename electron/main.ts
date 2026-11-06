@@ -104,6 +104,8 @@ async function dispatch(action: Action, raw: unknown): Promise<unknown> {
       const d = schemas.products.parse(raw);
       return inventory.search(d.query, d.limit, d.active, d.category_id, d.offset);
     }
+    case 'removeProduct':
+      return inventory.remove(schemas.removeProduct.parse(raw).product_id);
     case 'saveProduct':
       return inventory.save(schemas.saveProduct.parse(raw));
     case 'adjustStock':

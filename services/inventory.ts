@@ -77,6 +77,15 @@ export class Inventory {
       return result;
     })();
   }
+  remove(productId: string) {
+    const user = this.auth.owner();
+    return this.store.db.transaction(() => {
+      requireValue(this.store.get('SELECT id FROM products WHERE id=?', productId));
+      this.store.update('products', productId, { active: 0, quick_access: 0 });
+      this.store.audit(user.id, 'productRemoved', productId);
+      return true;
+    })();
+  }
   movement(
     productId: string,
     batchId: string,

@@ -98,7 +98,11 @@ async function run() {
     /clearedChequeLocked/,
   );
   console.log('Phase 5: held carts, split checkout, idempotency and failure rollback');
-  pos.shift('start');
+  // The first checkout opens its legacy bookkeeping reference automatically.
+  assert.equal(
+    store.get('SELECT id FROM shifts WHERE user_id=? AND end_time IS NULL', owner.id),
+    undefined,
+  );
   const cart = {
     ...emptyCart(),
     lines: [{ product_id: product.id, qty: 1.25, discount_percent: 2 }],
@@ -343,6 +347,19 @@ async function run() {
   const invalid = join(directory, 'invalid.db');
   writeFileSync(invalid, 'not a database');
   assert.throws(() => verifyBackup(invalid), /invalidBackup/);
+  const archivedProduct = inventory.search()[0];
+  const originalStock = inventory.byIds([archivedProduct.id])[0].stock;
+  inventory.remove(archivedProduct.id);
+  assert.ok(inventory.search(archivedProduct.sku).every((item) => item.id !== archivedProduct.id));
+  assert.equal(inventory.byIds([archivedProduct.id])[0].stock, originalStock);
+  assert.equal(
+    Number(store.get('SELECT active FROM products WHERE id=?', archivedProduct.id)!.active),
+    0,
+  );
+  auth.logout();
+  auth.login('cashier', 'cashier-test-2026');
+  assert.throws(() => auth.authorize('removeProduct'), /forbidden/);
+  assert.throws(() => inventory.remove(archivedProduct.id), /forbidden/);
   auth.lastActivity = Date.now() - store.settings().idle_minutes * 60000 - 1;
   assert.throws(() => auth.current(), /sessionExpired/);
   assert.equal(auth.userId, null);

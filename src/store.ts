@@ -62,7 +62,11 @@ export const useStore = create<State>((set, get) => ({
     const next = queue
       .catch(() => {})
       .then(async () => {
-        const cart = await api('saveCart', fn(get().cart));
+        const cart = await api('saveCart', {
+          ...fn(get().cart),
+          customer_id: null,
+          redeem_points: 0,
+        });
         set({ cart });
       });
     queue = next;
@@ -77,7 +81,10 @@ export const useStore = create<State>((set, get) => ({
     await queue.catch(() => {});
     const [cart, products] = await Promise.all([api('loadCart', {}), api('cartProducts', {})]);
     get().cache(products);
-    set({ cart });
+    if (cart.customer_id || cart.redeem_points) {
+      const cleared = await api('saveCart', { ...cart, customer_id: null, redeem_points: 0 });
+      set({ cart: cleared });
+    } else set({ cart });
   },
   toggleTheme: () => {
     const dark = !get().dark;

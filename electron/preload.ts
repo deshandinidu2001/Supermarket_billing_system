@@ -9,6 +9,7 @@ const actions = new Set([
   'language',
   'products',
   'saveProduct',
+  'removeProduct',
   'productDetails',
   'adjustStock',
   'batches',

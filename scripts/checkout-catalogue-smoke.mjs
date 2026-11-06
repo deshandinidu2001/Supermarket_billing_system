@@ -68,8 +68,12 @@ try {
   await expect(page.locator('.catalogue-product')).toHaveCount(1);
   await expect(page.locator('.catalogue-product-name')).toHaveText('Nadu rice');
   await search.fill('');
-  await page.getByRole('button', { name: 'Start shift', exact: true }).click();
-  await page.getByRole('button', { name: 'Start shift', exact: true }).waitFor({ state: 'hidden' });
+  for (const route of ['customers', 'shift', 'users'])
+    await expect(page.locator(`.nav-link[href="#/${route}"]`)).toHaveCount(0);
+  await expect(page.locator('.customer-button')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Customer credit', exact: true })).toHaveCount(0);
+  assert.equal((await invoke('bootstrap')).shift, null);
+
   const product = (await invoke('products', { query: 'Nadu rice' }))[0];
   const barcode = page.getByRole('textbox', {
     name: 'Scan a barcode or search products…',
@@ -105,11 +109,15 @@ try {
   ).toHaveValue('0.5');
   assert.equal((await invoke('loadCart')).lines[0].qty, 0.5);
   await expect(page.locator('.cart-table tbody tr').first()).toContainText('Rs. 115.00');
+  assert.ok(
+    (await page.locator('.cart-scroll').boundingBox()).height >= 120,
+    'Selected items need enough visible space',
+  );
   const selectedBounds = await page.locator('.cart-panel').boundingBox();
   const catalogueBounds = await page.locator('.catalogue-panel').boundingBox();
   assert.ok(
-    selectedBounds.y + selectedBounds.height <= catalogueBounds.y,
-    'Selected bill items must appear above the catalogue',
+    catalogueBounds.x + catalogueBounds.width <= selectedBounds.x,
+    'Catalogue must appear to the left of selected bill items',
   );
   await barcode.fill(product.sku);
   await barcode.press('Enter');
@@ -272,6 +280,53 @@ try {
     'Product creation with image, invalid image handling, persistence, bill thumbnail and image removal passed',
   );
 
+  // Checkout must succeed without a manual shift or customer selection.
+  await page.locator('.nav-link[href="#/checkout"]').click();
+  await expect(page.locator('.pay-button')).toBeEnabled();
+  assert.equal((await invoke('bootstrap')).shift, null);
+  await page.locator('.quick-cash button').last().click();
+  await page.locator('.pay-button').click();
+  await expect(modal.getByRole('heading', { name: 'Sale completed', exact: true })).toBeVisible();
+  const lastBill = (await invoke('list', { entity: 'sales' }))[0].bill_no;
+  assert.equal((await invoke('receipt', { bill_no: lastBill })).sale.customer_id, null);
+  await modal.getByRole('button', { name: 'Close', exact: true }).last().click();
+  await modal.waitFor({ state: 'hidden' });
+  await page.locator('.nav-link[href="#/reports"]').click();
+  await page.getByRole('button', { name: 'Last receipt', exact: true }).click();
+  await expect(modal.locator('.receipt-meta')).toContainText(lastBill);
+  await expect(modal.locator('.data-table')).toContainText('Photo test product');
+  await modal.getByRole('button', { name: 'Close', exact: true }).last().click();
+  await modal.waitFor({ state: 'hidden' });
+  await page
+    .locator('tr')
+    .filter({ hasText: lastBill })
+    .getByRole('button', { name: 'Bill details', exact: true })
+    .click();
+  await expect(modal.locator('.receipt-meta')).toContainText(lastBill);
+  await page.screenshot({ path: 'test-results/report-bill-details.png' });
+  await modal.getByRole('button', { name: 'Close', exact: true }).last().click();
+  await modal.waitFor({ state: 'hidden' });
+  await expect(page.getByRole('columnheader', { name: 'Customer', exact: true })).toHaveCount(0);
+  await page.locator('.nav-link[href="#/products"]').click();
+  await page
+    .getByRole('button', { name: 'Remove product: Photo test product', exact: true })
+    .click();
+  await modal.getByRole('button', { name: 'Confirm', exact: true }).click();
+  await modal.waitFor({ state: 'hidden' });
+  await expect(page.locator('tr').filter({ hasText: 'Photo test product' })).toHaveCount(0);
+  assert.equal((await invoke('products', { query: 'PHOTO-TEST' })).length, 0);
+  assert.equal((await invoke('products', { query: 'PHOTO-TEST', active: false }))[0].active, 0);
+  assert.ok(
+    (await invoke('receipt', { bill_no: lastBill })).items.some(
+      (item) => item.product_id === saved.id,
+    ),
+  );
+  await page.getByRole('checkbox', { name: 'Include removed products', exact: true }).check();
+  await expect(page.locator('tr').filter({ hasText: 'Photo test product' })).toHaveCount(1);
+  console.log(
+    'Customer-free checkout without manual shifts, report receipts and product removal with history preservation passed',
+  );
+
   await page.locator('.nav-link[href="#/checkout"]').click();
   for (const [width, height] of [
     [1366, 768],
@@ -290,6 +345,19 @@ try {
     );
     await expect.poll(() => page.evaluate(() => innerWidth)).toBe(width);
     await expect(page.locator('.catalogue-product').first()).toBeVisible();
+    if (width >= 1024) {
+      const left = await page.locator('.catalogue-panel').boundingBox();
+      const right = await page.locator('.cart-panel').boundingBox();
+      assert.ok(left.x + left.width <= right.x, `Product/bill columns at ${width}`);
+      await search.fill('Nadu rice');
+      await page.getByRole('button', { name: 'Add item: Nadu rice', exact: true }).click();
+      await measurement.getByRole('button', { name: '500 g', exact: true }).click();
+      await measurement.getByRole('button', { name: 'Add to bill', exact: true }).click();
+      await search.fill('');
+      await expect(page.locator('.cart-table tbody tr')).toHaveCount(1);
+      assert.ok((await page.locator('.cart-scroll').boundingBox()).height >= 120);
+    }
+
     assert.equal(
       await page.locator('body').evaluate((body) => body.scrollWidth > innerWidth),
       false,

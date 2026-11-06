@@ -162,10 +162,13 @@ export class POS {
         if (!['kg', 'g', 'l', 'ml'].includes(line.product.unit) && !Number.isInteger(line.qty))
           throw new AppError('wholeQuantity');
       const change = validatePayments(data.payments, totals.total);
-      const shift = requireValue(
-        this.store.get('SELECT id FROM shifts WHERE user_id=? AND end_time IS NULL', user.id),
-        'startShiftFirst',
-      );
+      // Retain the legacy sale reference without requiring a cashier shift workflow.
+      const shift = this.store.get(
+        'SELECT id FROM shifts WHERE user_id=? AND end_time IS NULL',
+        user.id,
+      ) ?? {
+        id: this.store.insert('shifts', { user_id: user.id, start_time: now(), end_time: null }),
+      };
       const customer = cart.customer_id
         ? requireValue(this.store.get('SELECT * FROM customers WHERE id=?', cart.customer_id))
         : null;

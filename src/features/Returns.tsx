@@ -157,7 +157,7 @@ export default function Returns() {
               <label className="field">
                 <span>{t('refundMethod')}</span>
                 <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
-                  {['cash', 'card', 'qr', 'credit'].map((m) => (
+                  {['cash', 'card', 'qr'].map((m) => (
                     <option key={m} value={m}>
                       {t(m)}
                     </option>

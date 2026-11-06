@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, FileInput, Layers, Pencil, Plus, SlidersHorizontal, Upload } from 'lucide-react';
+import {
+  Download,
+  FileInput,
+  Layers,
+  Pencil,
+  Plus,
+  SlidersHorizontal,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { safe } from '../lib/utils';
@@ -10,6 +19,7 @@ import type { Input } from '../../shared/contracts';
 import { Button } from '../components/ui/button';
 import { Modal } from '../components/ui/dialog';
 import {
+  Confirm,
   DataTable,
   ErrorState,
   Loading,
@@ -22,12 +32,14 @@ export default function Products() {
   const { t, i18n } = useTranslation();
   const [q, setQ] = useState(''),
     [category, setCategory] = useState(''),
+    [showRemoved, setShowRemoved] = useState(false),
+    [remove, setRemove] = useState<Row | null>(null),
     [edit, setEdit] = useState<Record<string, unknown> | null>(null),
     [adjust, setAdjust] = useState<Product | null>(null),
     [batches, setBatches] = useState<Product | null>(null);
   const { data, error, reload } = useLoad(
-    () => api('products', { query: q, limit: 200, active: false }),
-    [q],
+    () => api('products', { query: q, limit: 200, active: !showRemoved }),
+    [q, showRemoved],
   );
   const bootstrap = useStore((s) => s.bootstrap);
   const suppliers = useLoad(() => api('list', { entity: 'suppliers' })).data ?? [];
@@ -108,6 +120,14 @@ export default function Products() {
       />
       <section className="panel">
         <div className="content-toolbar">
+          <label className="removed-products-toggle">
+            <input
+              type="checkbox"
+              checked={showRemoved}
+              onChange={(e) => setShowRemoved(e.target.checked)}
+            />
+            {t('showRemovedProducts')}
+          </label>
           <SearchBox value={q} onChange={setQ} placeholder={t('searchHint')} />
           <select
             aria-label={t('category')}
@@ -174,6 +194,17 @@ export default function Products() {
                   >
                     <SlidersHorizontal size={15} />
                   </Button>
+                  {!!row.active && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="remove-product-button"
+                      aria-label={`${t('removeProduct')}: ${row.name_en}`}
+                      onClick={() => setRemove(row)}
+                    >
+                      <Trash2 size={15} />
+                    </Button>
+                  )}
                 </>
               )}
             />
@@ -223,6 +254,19 @@ export default function Products() {
             setAdjust(null);
             reload();
             safe(() => useStore.getState().boot());
+          }}
+        />
+      )}
+      {remove && (
+        <Confirm
+          title={`${t('removeProduct')}: ${remove.name_en}. ${t('removeProductHint')}`}
+          onClose={() => setRemove(null)}
+          onConfirm={async () => {
+            const result = await api('removeProduct', { product_id: String(remove.id) });
+            reload();
+            await useStore.getState().boot();
+            toast.success(t('productRemoved'));
+            return result;
           }}
         />
       )}
