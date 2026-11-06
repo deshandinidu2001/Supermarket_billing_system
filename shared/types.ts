@@ -28,6 +28,7 @@ export interface Product {
   supplier_id?: string | null;
   stock: number;
   available_stock?: number;
+  expired_stock?: number;
   image: string | null;
 }
 export interface CartLine {

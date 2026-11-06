@@ -3,6 +3,7 @@ import {
   Suspense,
   lazy,
   useEffect,
+  useLayoutEffect,
   useState,
   type ErrorInfo,
   type ReactNode,
@@ -51,7 +52,6 @@ import {
   Sun,
   Truck,
   Wallet,
-  WifiOff,
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { useStore } from './store';
@@ -137,10 +137,15 @@ function LanguageButton() {
   );
 }
 function Login() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation(undefined, { lng: 'en' });
   const login = useStore((s) => s.login);
   const [pinMode, setPinMode] = useState(false);
   const [busy, setBusy] = useState(false);
+  useLayoutEffect(() => {
+    // The sign-in screen is English; account language is restored by login/boot.
+    void i18n.changeLanguage('en');
+    document.documentElement.lang = 'en';
+  }, [i18n]);
   const {
     register,
     handleSubmit,
@@ -149,50 +154,38 @@ function Login() {
     resolver: zodResolver(z.object({ username: z.string().min(1), password: z.string().min(1) })),
   });
   return (
-    <div className="login-page">
-      <section className="login-story">
+    <div className="signin-page" lang="en">
+      <aside className="signin-identity">
         <Brand />
-        <div className="login-story-content">
-          <div className="store-sign">
-            <Store size={48} />
+        <div className="signin-intro">
+          <div className="signin-store-mark" aria-hidden="true">
+            <Store size={42} strokeWidth={1.5} />
           </div>
-          <h1>{t('shop')}</h1>
-          <p>{t('tagline')}</p>
-          <div className="login-receipt">
-            <div className="receipt-mark">
-              <ShoppingBasket size={22} />
-            </div>
-            <div className="receipt-demo-line long" />
-            <div className="receipt-demo-line" />
-            <div className="receipt-rule" />
-            <div className="receipt-demo-product">
-              <span>{t('name_en')}</span>
-              <span>{t('name_si')}</span>
-            </div>
-            <div className="receipt-demo-line long" />
-            <div className="receipt-demo-line" />
-            <div className="receipt-rule" />
-            <strong>Rs. 1,250.00</strong>
-            <div className="receipt-barcode" />
-          </div>
+          <h1>
+            Ajith
+            <br />
+            Super Market
+          </h1>
+          <p>
+            Billing and stock management,
+            <br />
+            ready for your working day.
+          </p>
         </div>
-        <div className="login-local">
+        <div className="signin-local">
           <ShieldCheck size={18} />
-          {t('localData')}
+          <span>{t('localData')}</span>
         </div>
-      </section>
-      <section className="login-form-side">
-        <div className="login-top">
-          <LanguageButton />
+      </aside>
+      <main className="signin-access">
+        <div className="signin-status">
+          <span />
+          {t('offline')}
         </div>
-        <div className="login-form-wrap">
-          <span className="badge badge-green">
-            <WifiOff size={13} />
-            {t('offline')}
-          </span>
-          <h2>{t('welcome')}</h2>
+        <section className="signin-form-shell" aria-labelledby="signin-title">
+          <h2 id="signin-title">{t('welcome')}</h2>
           <p>{t('loginHint')}</p>
-          <div className="login-method-switch overview-source">
+          <div className="signin-methods" role="group" aria-label="Sign-in method">
             <button type="button" aria-pressed={!pinMode} onClick={() => setPinMode(false)}>
               {t('password')}
             </button>
@@ -204,6 +197,7 @@ function Login() {
             <CashierPinForm />
           ) : (
             <form
+              className="signin-password-form"
               onSubmit={(e) => {
                 void handleSubmit(async (values) => {
                   setBusy(true);
@@ -221,6 +215,8 @@ function Login() {
                   {...register('username')}
                   autoFocus
                   autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   aria-invalid={!!errors.username}
                 />
               </label>
@@ -233,25 +229,22 @@ function Login() {
                   aria-invalid={!!errors.password}
                 />
               </label>
-              <Button className="login-submit" disabled={busy || !window.pos}>
-                {busy ? t('loading') : t('signIn')}
+              <Button className="signin-submit" disabled={busy || !window.pos}>
+                <span>{busy ? t('loading') : t('signIn')}</span>
                 <ArrowRight size={18} />
               </Button>
             </form>
           )}
-          {!window.pos ? (
-            <div className="notice notice-amber">{t('noElectron')}</div>
-          ) : (
-            <div className="default-login">
-              <LockKeyhole size={15} />
-              {t('defaultLogin')}
-            </div>
-          )}
-        </div>
-        <footer>
-          Ajith Super Market <span>•</span> {t('offline')}
+          {!window.pos && <div className="notice notice-amber">{t('noElectron')}</div>}
+          <p className="signin-help">
+            <LockKeyhole size={14} />
+            <span>Use the account provided by your store owner.</span>
+          </p>
+        </section>
+        <footer className="signin-credit">
+          Developed by <strong>Deshan Dinidu</strong>
         </footer>
-      </section>
+      </main>
     </div>
   );
 }

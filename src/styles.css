@@ -3972,3 +3972,253 @@ textarea::placeholder {
   padding: 0;
   margin: 0;
 }
+
+/* Store sign-in: shop identity, account access, and developer credit. */
+.signin-page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  background: var(--panel);
+}
+.signin-identity {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(30px, 4vw, 64px);
+  background: #174b3e;
+  color: #f5f8f6;
+}
+.signin-identity .brand {
+  color: #f5f8f6;
+}
+.signin-identity .brand-icon {
+  background: #ffffff12;
+  color: #dcebdc;
+}
+.signin-identity .brand span {
+  color: #b6cec4;
+}
+.signin-intro {
+  padding: 55px 0;
+}
+.signin-store-mark {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  margin-bottom: 30px;
+  border: 1px solid #ffffff30;
+  border-radius: 18px;
+  color: #caddc1;
+}
+.signin-intro h1 {
+  font-size: clamp(44px, 4.4vw, 78px);
+  line-height: 1.08;
+  letter-spacing: -2.5px;
+  font-weight: 600;
+}
+.signin-intro p {
+  margin-top: 26px;
+  color: #b6cec4;
+  font-size: 15px;
+  line-height: 1.8;
+}
+.signin-local {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: #b6cec4;
+  font-size: 12px;
+}
+.signin-access {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-width: 0;
+  padding: 34px clamp(28px, 5vw, 88px) 28px;
+}
+.signin-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.signin-status > span {
+  width: 7px;
+  height: 7px;
+  background: var(--green);
+  border-radius: 50%;
+}
+.signin-form-shell {
+  width: 100%;
+  max-width: 390px;
+  justify-self: center;
+  align-self: center;
+  padding: 46px 0;
+}
+.signin-form-shell h2 {
+  font-size: 32px;
+  font-weight: 650;
+  letter-spacing: -1px;
+}
+.signin-form-shell > p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+  margin-top: 10px;
+}
+.signin-methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 28px 0 24px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 4px;
+}
+.signin-methods button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 5px;
+  font-size: 12px;
+}
+.signin-methods button[aria-pressed='true'] {
+  color: var(--green);
+  background: var(--panel);
+  box-shadow: 0 1px 3px #00000012;
+  font-weight: 600;
+}
+.signin-password-form {
+  display: grid;
+  gap: 20px;
+}
+.signin-form-shell .field {
+  margin: 0;
+  font-size: 12px;
+}
+.signin-form-shell input,
+.signin-form-shell select {
+  min-height: 48px;
+}
+.signin-form-shell .signin-submit {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 4px;
+  justify-content: space-between;
+}
+.signin-form-shell .signin-help {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 24px;
+  font-size: 11px;
+}
+.signin-help svg {
+  margin-top: 3px;
+}
+.signin-credit {
+  justify-self: center;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+  text-align: center;
+}
+.signin-credit strong {
+  color: var(--ink);
+  font-weight: 600;
+  margin-left: 3px;
+}
+@media (max-width: 800px) {
+  .signin-page {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  }
+  .signin-identity {
+    padding: 30px;
+  }
+  .signin-intro h1 {
+    font-size: 42px;
+    letter-spacing: -1.5px;
+  }
+  .signin-intro p {
+    font-size: 13px;
+  }
+  .signin-access {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+}
+@media (max-width: 600px) {
+  .signin-page {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+  .signin-identity {
+    padding: 24px 28px;
+  }
+  .signin-identity .brand-icon {
+    width: 42px;
+    height: 42px;
+  }
+  .signin-identity .brand strong {
+    font-size: 24px;
+  }
+  .signin-intro,
+  .signin-local {
+    display: none;
+  }
+  .signin-access {
+    padding: 20px 28px 24px;
+  }
+  .signin-form-shell {
+    padding: 32px 0;
+  }
+  .signin-form-shell h2 {
+    font-size: 29px;
+  }
+  .signin-credit {
+    padding-top: 16px;
+  }
+}
+@media (max-height: 650px) and (min-width: 601px) {
+  .signin-identity {
+    padding: 24px 34px;
+  }
+  .signin-intro {
+    padding: 24px 0;
+  }
+  .signin-store-mark {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 18px;
+  }
+  .signin-intro h1 {
+    font-size: 44px;
+  }
+  .signin-intro p {
+    margin-top: 16px;
+  }
+  .signin-access {
+    padding-top: 20px;
+    padding-bottom: 18px;
+  }
+  .signin-form-shell {
+    padding: 24px 0;
+  }
+}
+
+.inventory-stock-note {
+  padding: 10px 18px;
+  color: var(--muted);
+  font-size: 11px;
+  border-bottom: 1px solid var(--line);
+}
+.catalogue-expired {
+  margin-top: 3px;
+  color: var(--amber);
+  font-size: 9px;
+}

@@ -556,5 +556,14 @@
   "audit.pinLogin": "Cashier signed in with PIN",
   "audit.pinLoginFailed": "Failed cashier PIN sign-in",
   "stockLimitReached": "All available stock in bill",
-  "manageCashiers": "Manage cashiers"
+  "manageCashiers": "Manage cashiers",
+  "total_stock": "Total stock",
+  "available_stock": "Available stock",
+  "expired_stock": "Expired stock",
+  "stock_status": "Stock status",
+  "available": "Available",
+  "depleted": "Depleted",
+  "expiredStockLabel": "Expired stock",
+  "expiredStockHint": "This stock has expired and cannot be added to a bill.",
+  "stockAvailabilityHint": "Total stock includes expired batches. Only available, unexpired stock can be sold."
 }

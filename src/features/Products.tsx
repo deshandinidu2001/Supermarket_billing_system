@@ -143,6 +143,7 @@ export default function Products() {
             ))}
           </select>
         </div>
+        <p className="inventory-stock-note">{t('stockAvailabilityHint')}</p>
         {error ? (
           <ErrorState retry={reload} />
         ) : !data ? (
@@ -152,7 +153,7 @@ export default function Products() {
             <DataTable
               rows={data
                 .filter((p) => !category || p.category_id === category)
-                .map((p) => ({ ...p }))}
+                .map((p) => ({ ...p, total_stock: p.stock }))}
               columns={[
                 'name_en',
                 'name_si',
@@ -160,7 +161,9 @@ export default function Products() {
                 'unit',
                 'selling_price',
                 'cost_price',
-                'stock',
+                'total_stock',
+                'available_stock',
+                'expired_stock',
                 'active',
               ]}
               actions={(row) => (
@@ -282,7 +285,7 @@ function BatchModal({ product, onClose }: { product: Product; onClose: () => voi
       {data ? (
         <DataTable
           rows={data}
-          columns={['id', 'qty', 'cost_price', 'expiry_date', 'received_date']}
+          columns={['qty', 'stock_status', 'cost_price', 'expiry_date', 'received_date']}
         />
       ) : (
         <Loading />

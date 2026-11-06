@@ -105,6 +105,9 @@ export default function CheckoutCatalogue({
         ) : (
           <div className="catalogue-grid">
             {items.map((product) => {
+              const available = product.available_stock ?? product.stock;
+              const expired = product.expired_stock ?? 0;
+              const expiredOnly = available <= 0 && expired > 0;
               const remaining =
                 (product.available_stock ?? product.stock) -
                 (cart.lines.find((line) => line.product_id === product.id)?.qty ?? 0);
@@ -115,6 +118,7 @@ export default function CheckoutCatalogue({
                   key={product.id}
                   aria-label={`${t('addItem')}: ${name}`}
                   disabled={remaining <= 0}
+                  title={expiredOnly ? t('expiredStockHint') : undefined}
                   onClick={() => onAdd(product)}
                 >
                   <span className="catalogue-image">
@@ -134,15 +138,22 @@ export default function CheckoutCatalogue({
                   <strong className="catalogue-price">
                     {money(product.selling_price)} <small>/ {t(`units.${product.unit}`)}</small>
                   </strong>
-                  <span className={`catalogue-stock ${product.stock <= 0 ? 'out-of-stock' : ''}`}>
+                  <span className={`catalogue-stock ${remaining <= 0 ? 'out-of-stock' : ''}`}>
                     {remaining <= 0
                       ? t(
                           (product.available_stock ?? product.stock) <= 0
-                            ? 'outOfStock'
+                            ? expiredOnly
+                              ? 'expiredStockLabel'
+                              : 'outOfStock'
                             : 'stockLimitReached',
                         )
                       : `${t('availableStock')}: ${remaining} ${t(`units.${product.unit}`)}`}
                   </span>
+                  {expired > 0 && (
+                    <span className="catalogue-expired">
+                      {t('expired')}: {expired} {t(`units.${product.unit}`)}
+                    </span>
+                  )}
                 </button>
               );
             })}

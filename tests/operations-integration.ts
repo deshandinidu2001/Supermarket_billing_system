@@ -262,6 +262,9 @@ async function run() {
       reason: 'correction',
     });
     assert.equal(inventory.search('OPS-ZERO')[0].stock, 5);
+    assert.equal(inventory.search('OPS-ZERO')[0].expired_stock, 5);
+    assert.equal(inventory.byIds([newId])[0].expired_stock, 5);
+    assert.equal(inventory.batches(newId)[0].stock_status, 'expired');
     assert.equal(inventory.search('OPS-ZERO')[0].available_stock, 0);
     assert.throws(() => pos.saveCart(cart), /insufficientStock/);
     inventory.adjust({
@@ -272,6 +275,10 @@ async function run() {
       expiry_date: null,
       reason: 'correction',
     });
+    const mixed = inventory.search('OPS-ZERO')[0];
+    assert.equal(mixed.stock, 7);
+    assert.equal(mixed.available_stock, 2);
+    assert.equal(mixed.expired_stock, 5);
     assert.throws(
       () => pos.saveCart({ ...cart, lines: [{ ...cart.lines[0], qty: 3 }] }),
       /insufficientStock/,
@@ -312,6 +319,23 @@ async function run() {
     );
     store.saveSettings({ ...store.settings(), allow_negative: false });
     pos.saveCart(emptyCart());
+
+    const measuredBeforeToday = inventory.byIds([measured.id])[0];
+    inventory.adjust({
+      product_id: measured.id,
+      batch_id: null,
+      qty: 1,
+      cost_price: 10000,
+      expiry_date: today(),
+      reason: 'correction',
+    });
+    const measuredToday = inventory.byIds([measured.id])[0];
+    assert.equal(measuredToday.available_stock, Number(measuredBeforeToday.available_stock) + 1);
+    assert.equal(measuredToday.expired_stock, measuredBeforeToday.expired_stock);
+    assert.equal(
+      inventory.batches(measured.id).find((batch) => batch.expiry_date === today())!.stock_status,
+      'available',
+    );
 
     console.log('Operations: verified online backups and durable failed-verification status');
     store.saveSettings({

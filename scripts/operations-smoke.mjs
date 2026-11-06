@@ -41,6 +41,56 @@ try {
     await page.getByRole('button', { name: 'Save password', exact: true }).click();
     await page.locator('.app-shell').waitFor();
   }
+  // Login stays English even when a previous session selected Sinhala.
+  await page.evaluate(() => {
+    localStorage.setItem('ajith-language', 'si');
+  });
+  for (const dark of [false, true]) {
+    await page.evaluate((value) => localStorage.setItem('ajith-dark', String(value)), dark);
+    await page.reload();
+    await expect(page.locator('.signin-credit')).toHaveText('Developed by Deshan Dinidu');
+    await expect(page.getByRole('button', { name: 'Language', exact: true })).toHaveCount(0);
+    await expect(page.locator('.login-receipt, .default-login')).toHaveCount(0);
+    assert.equal(await page.evaluate(() => /[\u0D80-\u0DFF]/.test(document.body.innerText)), false);
+    assert.equal(await page.evaluate(() => document.body.innerText.includes('ajith123')), false);
+    assert.equal(await page.evaluate(() => document.documentElement.lang), 'en');
+    assert.equal(await page.evaluate(() => localStorage.getItem('ajith-language')), 'si');
+    for (const [width, height] of [
+      [1440, 900],
+      [1024, 768],
+      [390, 844],
+    ]) {
+      await app.evaluate(
+        ({ BrowserWindow }, size) => {
+          const win = BrowserWindow.getAllWindows()[0];
+          win.setMinimumSize(0, 0);
+          win.unmaximize();
+          win.setContentSize(...size);
+        },
+        [width, height],
+      );
+      await expect.poll(() => page.evaluate(() => innerWidth)).toBe(width);
+      const credit = await page.locator('.signin-credit').boundingBox();
+      assert.ok(credit.y + credit.height <= height, `Developer credit visible at ${width}`);
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+        false,
+      );
+      await page.screenshot({
+        path: `test-results/login-${dark ? 'dark' : 'light'}-${width}.png`,
+        animations: 'disabled',
+      });
+    }
+    await page.getByRole('button', { name: 'Cashier PIN', exact: true }).click();
+    await expect(page.locator('.signin-form-shell')).toContainText('No cashier PINs are ready.');
+    assert.equal(await page.evaluate(() => /[\u0D80-\u0DFF]/.test(document.body.innerText)), false);
+    await page.getByRole('button', { name: 'Password', exact: true }).click();
+  }
+  await page.evaluate(() => localStorage.setItem('ajith-dark', 'false'));
+  await page.reload();
+  console.log(
+    'English-only login, removed sample receipt/credentials, developer credit and responsive light/dark layout passed',
+  );
   await login('owner', 'ajith123');
   await changePassword('ajith123', 'owner-ui-operations', true);
   await app.evaluate(({ BrowserWindow }) => {
@@ -99,6 +149,83 @@ try {
   );
   assert.equal(after.balance, supplier.balance - batch.cost_price);
   await modal.getByRole('button', { name: 'Close', exact: true }).click();
+
+  const expiryId = await invoke('saveProduct', {
+    ...pcs,
+    id: undefined,
+    sku: 'UI-EXPIRY',
+    barcodes: ['8899001122337'],
+    name_en: 'Expiry check item',
+    name_si: 'Expiry check item',
+    mrp: null,
+    active: true,
+    quick_access: false,
+    supplier_id: null,
+    image: null,
+  });
+  await invoke('adjustStock', {
+    product_id: expiryId,
+    batch_id: null,
+    qty: 405,
+    cost_price: 10000,
+    expiry_date: '2020-01-01',
+    reason: 'correction',
+  });
+  async function checkStockColumns(total, available, expired) {
+    await page.locator('.nav-link[href="#/products"]').click();
+    await page
+      .getByRole('textbox', { name: 'Search by barcode, English or Sinhala name', exact: true })
+      .fill('UI-EXPIRY');
+    const table = page.locator('.data-table');
+    const row = table.locator('tbody tr').filter({ hasText: 'Expiry check item' });
+    await expect(row).toHaveCount(1);
+    const columns = await table.locator('thead th').allTextContents();
+    for (const [column, value] of [
+      ['Total stock', total],
+      ['Available stock', available],
+      ['Expired stock', expired],
+    ])
+      await expect(row.locator('td').nth(columns.indexOf(column))).toHaveText(String(value));
+    return row;
+  }
+  const expiryRow = await checkStockColumns(405, 0, 405);
+  await expiryRow.getByRole('button', { name: 'Stock batches', exact: true }).click();
+  await expect(page.getByRole('dialog').getByText('Expired', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'test-results/expired-stock-batches.png', animations: 'disabled' });
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+  await page.screenshot({
+    path: 'test-results/expired-stock-products.png',
+    animations: 'disabled',
+  });
+  await page.locator('.nav-link[href="#/checkout"]').click();
+  const expirySearch = page.getByRole('textbox', {
+    name: 'Search items by name, SKU or barcode',
+    exact: true,
+  });
+  await expirySearch.fill('UI-EXPIRY');
+  const expiryCard = page.getByRole('button', { name: 'Add item: Expiry check item', exact: true });
+  await expect(expiryCard).toBeDisabled();
+  await expect(expiryCard.locator('.catalogue-stock')).toHaveText('Expired stock');
+  await expect(expiryCard.locator('.catalogue-expired')).toHaveText('Expired: 405 pcs');
+  await page.screenshot({
+    path: 'test-results/expired-stock-checkout.png',
+    animations: 'disabled',
+  });
+  await invoke('adjustStock', {
+    product_id: expiryId,
+    batch_id: null,
+    qty: 10,
+    cost_price: 10000,
+    expiry_date: null,
+    reason: 'correction',
+  });
+  await expirySearch.fill(pcs.sku);
+  await expirySearch.fill('UI-EXPIRY');
+  await expect(expiryCard).toBeEnabled();
+  await expect(expiryCard.locator('.catalogue-stock')).toHaveText('Available: 10 pcs');
+  await expect(expiryCard.locator('.catalogue-expired')).toHaveText('Expired: 405 pcs');
+  await checkStockColumns(415, 10, 405);
+  console.log('Expired-only and mixed stock quantities, batch status and checkout labels agree');
 
   const zeroId = await invoke('saveProduct', {
     ...pcs,
@@ -257,6 +384,17 @@ try {
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.locator('.header-user small')).toHaveText('Cashier');
   assert.equal((await invoke('loadCart')).lines[0].qty, 3);
+  // The account's saved language still applies after PIN authentication.
+  await invoke('language', { language: 'si' });
+  await page.reload();
+  await expect(page.getByLabel('Username', { exact: true })).toBeVisible();
+  assert.equal(await page.evaluate(() => document.documentElement.lang), 'en');
+  await page.getByRole('button', { name: 'Cashier PIN', exact: true }).click();
+  await page.getByLabel('Cashier', { exact: true }).selectOption(cashier.id);
+  await page.getByLabel('Cashier PIN', { exact: true }).fill('2468');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.locator('.app-shell').waitFor();
+  await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('si');
   assert.deepEqual(errors, []);
   console.log(
     'Settings PIN configuration, login/switching with per-account carts, and visible backup verification passed',

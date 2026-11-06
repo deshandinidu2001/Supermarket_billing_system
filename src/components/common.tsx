@@ -134,10 +134,10 @@ export function DataTable({
           {t(value ? 'yes' : 'no')}
         </span>
       );
-    if (['status', 'role', 'method', 'reason'].includes(key))
+    if (['status', 'role', 'method', 'reason', 'stock_status'].includes(key))
       return (
         <span
-          className={`badge badge-${value === 'pending' ? 'amber' : value === 'returned' || value === 'void' ? 'red' : 'green'}`}
+          className={`badge badge-${value === 'pending' ? 'amber' : value === 'returned' || value === 'void' || value === 'expired' ? 'red' : value === 'depleted' ? 'neutral' : 'green'}`}
         >
           {t(String(value))}
         </span>

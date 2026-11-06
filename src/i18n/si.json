@@ -556,5 +556,14 @@
   "audit.pinLogin": "අයකැමි PIN මගින් පිවිසුණි",
   "audit.pinLoginFailed": "අයකැමි PIN පිවිසුම අසාර්ථකයි",
   "stockLimitReached": "ලබා ගත හැකි සියලු තොග බිල්පතේ ඇත",
-  "manageCashiers": "මුදල් අයකැමි කළමනාකරණය"
+  "manageCashiers": "මුදල් අයකැමි කළමනාකරණය",
+  "total_stock": "මුළු තොගය",
+  "available_stock": "විකිණිය හැකි තොගය",
+  "expired_stock": "කල් ඉකුත් වූ තොගය",
+  "stock_status": "තොග තත්ත්වය",
+  "available": "ලබා ගත හැකි",
+  "depleted": "අවසන්",
+  "expiredStockLabel": "කල් ඉකුත් වූ තොගය",
+  "expiredStockHint": "මෙම තොගයේ කල් ඉකුත් වී ඇති නිසා බිල්පතට එක් කළ නොහැක.",
+  "stockAvailabilityHint": "මුළු තොගයට කල් ඉකුත් වූ තොගද ඇතුළත් වේ. විකිණිය හැක්කේ කල් ඉකුත් නොවූ තොග පමණි."
 }

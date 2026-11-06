@@ -191,7 +191,7 @@ export default function Checkout() {
   async function selectProduct(product: Product) {
     const existing = cart.lines.find((line) => line.product_id === product.id)?.qty ?? 0;
     if ((product.available_stock ?? product.stock) <= existing) {
-      toast.error(t('outOfStock'));
+      toast.error(t((product.expired_stock ?? 0) > 0 ? 'expiredStockHint' : 'outOfStock'));
       return;
     }
     if (isMeasuredUnit(product.unit)) {
@@ -366,7 +366,9 @@ export default function Checkout() {
                       <span
                         className={`badge ${p.stock <= p.reorder_level ? 'badge-amber' : 'badge-neutral'}`}
                       >
-                        {p.stock} {t(`units.${p.unit}`)}
+                        {(p.available_stock ?? p.stock) <= 0 && (p.expired_stock ?? 0) > 0
+                          ? t('expiredStockLabel')
+                          : `${t('availableStock')}: ${p.available_stock ?? p.stock} ${t(`units.${p.unit}`)}`}
                       </span>
                       <strong>{money(p.selling_price)}</strong>
                     </button>
