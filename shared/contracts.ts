@@ -220,6 +220,7 @@ export const schemas = {
   }),
   customerPayment: z.object({ customer_id: id, amount: money.refine((v) => v > 0), note: text }),
   customerHistory: z.object({ customer_id: id }),
+  renameUser: z.object({ id, display_name: text.min(1).max(100) }),
   saveUser: z.object({
     id: id.optional(),
     username: z.string().regex(/^[a-zA-Z0-9_.-]{3,40}$/),
@@ -299,6 +300,7 @@ export interface Outputs {
   customerPayment: string;
   customerHistory: { sales: Row[]; payments: Row[]; loyalty: Row[] };
   saveUser: string;
+  renameUser: boolean;
   loadCart: Cart;
   cartProducts: Product[];
   saveCart: Cart;

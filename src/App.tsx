@@ -318,7 +318,9 @@ function Shell() {
     };
   }, [data?.settings.idle_minutes, lock]);
   return (
-    <div className={`app-shell ${sidebarHidden ? 'sidebar-hidden' : ''}`}>
+    <div
+      className={`app-shell ${current === 'checkout' ? 'checkout-workspace' : ''} ${sidebarHidden ? 'sidebar-hidden' : ''}`}
+    >
       {menu && (
         <button className="sidebar-scrim" aria-label={t('close')} onClick={() => setMenu(false)} />
       )}

@@ -34,6 +34,11 @@ export class POS {
     if (new Set(cart.lines.map((l) => l.product_id)).size !== cart.lines.length)
       throw new AppError('duplicateLine');
     if (products.some((p) => !p.active)) throw new AppError('productUnavailable');
+    for (const line of cart.lines) {
+      const product = products.find((p) => p.id === line.product_id);
+      if (product && ['pcs', 'pack'].includes(product.unit) && !Number.isInteger(line.qty))
+        throw new AppError('wholeQuantity');
+    }
     checkDiscount(user.role, cart, products, this.store.settings());
     const row = this.store.get(
       "SELECT id FROM held_bills WHERE user_id=? AND status='open'",

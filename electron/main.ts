@@ -144,6 +144,8 @@ async function dispatch(action: Action, raw: unknown): Promise<unknown> {
       return management.customerPayment(schemas.customerPayment.parse(raw));
     case 'customerHistory':
       return management.history(schemas.customerHistory.parse(raw).customer_id);
+    case 'renameUser':
+      return auth.renameUser(schemas.renameUser.parse(raw));
     case 'saveUser':
       return auth.saveUser(schemas.saveUser.parse(raw));
     case 'loadCart':
@@ -308,7 +310,8 @@ function createWindow() {
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (!allowed(url)) event.preventDefault();
   });
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  mainWindow.maximize();
+  mainWindow.show();
   mainWindow.on('closed', () => {
     mainWindow = null;
   });

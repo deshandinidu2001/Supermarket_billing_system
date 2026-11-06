@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -24,6 +24,7 @@ import {
   YAxis,
 } from 'recharts';
 import { api } from '../lib/api';
+import { mockOverview } from '../../services/mock-overview';
 import { money, rangeFor } from '../lib/utils';
 import { useStore } from '../store';
 import { Button } from '../components/ui/button';
@@ -32,7 +33,17 @@ export default function Dashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [range, setRange] = useState(rangeFor('month'));
-  const { data, error, reload } = useLoad(() => api('dashboard', range), [range.from, range.to]);
+  const [preview, setPreview] = useState(
+    () => localStorage.getItem('ajith-overview-preview') === 'true',
+  );
+  const live = useLoad(() => api('dashboard', range), [range.from, range.to]);
+  const mock = useMemo(
+    () => (preview ? mockOverview(range.from, range.to) : null),
+    [preview, range.from, range.to],
+  );
+  const data = preview ? mock : live.data;
+  const error = preview ? null : live.error;
+  const reload = live.reload;
   const bootstrap = useStore((s) => s.bootstrap);
   const format = (value: unknown) => money(Number(value));
   const axis = (v: number) => (v >= 100000 ? `${(v / 100000).toFixed(0)}k` : (v / 100).toFixed(0));
@@ -49,9 +60,29 @@ export default function Dashboard() {
           </Button>
         }
       />
-      <div className="content-toolbar" style={{ padding: '0 0 22px', border: 0 }}>
+      <div className="content-toolbar overview-toolbar" style={{ padding: '0 0 22px', border: 0 }}>
+        <div className="overview-source" role="group" aria-label={t('overviewSource')}>
+          {[false, true].map((sample) => (
+            <button
+              key={String(sample)}
+              aria-pressed={preview === sample}
+              onClick={() => {
+                setPreview(sample);
+                localStorage.setItem('ajith-overview-preview', String(sample));
+              }}
+            >
+              {t(sample ? 'mockPreview' : 'liveRecords')}
+            </button>
+          ))}
+        </div>
         <RangeFilter value={range} onChange={setRange} />
       </div>
+      {preview && (
+        <div className="notice notice-amber mock-overview-notice">
+          <strong>{t('mockPreview')}</strong>
+          <span>{t('mockOverviewHint')}</span>
+        </div>
+      )}
       {error ? (
         <ErrorState retry={reload} />
       ) : !data ? (

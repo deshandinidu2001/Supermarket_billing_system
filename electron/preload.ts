@@ -21,6 +21,7 @@ const actions = new Set([
   'customerPayment',
   'customerHistory',
   'saveUser',
+  'renameUser',
   'loadCart',
   'cartProducts',
   'saveCart',

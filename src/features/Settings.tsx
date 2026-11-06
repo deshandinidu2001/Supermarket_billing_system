@@ -8,13 +8,14 @@ import { useStore } from '../store';
 import type { Input } from '../../shared/contracts';
 import { Button } from '../components/ui/button';
 import { Modal } from '../components/ui/dialog';
-import { PageTitle } from '../components/common';
+import { PageTitle, useLoad } from '../components/common';
 import { field, RecordForm, type Field } from '../components/forms';
 export default function Settings() {
   const { t } = useTranslation();
   const data = useStore((s) => s.bootstrap)!;
   const [password, setPassword] = useState(false),
     [busy, setBusy] = useState(false);
+  const users = useLoad(() => api('list', { entity: 'users' }));
   const s = data.settings;
   const sections: { title: string; fields: Field[] }[] = [
     {
@@ -115,6 +116,32 @@ export default function Settings() {
       />
       <div className="settings-layout">
         <div className="settings-sections">
+          <section className="panel settings-section account-names">
+            <h2>{t('accountNames')}</h2>
+            <p className="record-description">{t('accountNamesHint')}</p>
+            {users.data?.map((account) => (
+              <div className="account-name-row" key={String(account.id)}>
+                <div>
+                  <strong>{t(String(account.role))}</strong>
+                  <small>{account.username}</small>
+                </div>
+                <RecordForm
+                  key={`${account.id}-${account.display_name}`}
+                  fields={[field('display_name', { required: true })]}
+                  initial={{ display_name: account.display_name }}
+                  onSave={async (values) => {
+                    await api('renameUser', {
+                      id: String(account.id),
+                      display_name: String(values.display_name),
+                    });
+                    users.reload();
+                    await useStore.getState().boot();
+                    toast.success(t('saved'));
+                  }}
+                />
+              </div>
+            ))}
+          </section>
           {sections.map((section) => (
             <section className="panel settings-section" key={section.title}>
               <h2>{t(section.title)}</h2>

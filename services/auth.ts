@@ -117,6 +117,13 @@ export class Auth {
     this.store.update('users', user.id, { language });
     return this.current(true);
   }
+  renameUser(data: { id: string; display_name: string }) {
+    const owner = this.owner();
+    requireValue(this.store.get('SELECT id FROM users WHERE id=?', data.id));
+    this.store.update('users', data.id, { display_name: data.display_name });
+    this.store.audit(owner.id, 'userRenamed', data.id);
+    return true;
+  }
   saveUser(data: {
     id?: string;
     username: string;

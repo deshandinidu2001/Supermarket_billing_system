@@ -49,6 +49,7 @@ function Numeric({
   step = '.001',
   label,
   className,
+  integer = false,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -56,6 +57,7 @@ function Numeric({
   step?: string;
   label: string;
   className?: string;
+  integer?: boolean;
 }) {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
@@ -65,9 +67,14 @@ function Numeric({
       type="number"
       min={min}
       step={step}
+      inputMode={integer ? 'numeric' : 'decimal'}
+      onKeyDown={(e) => {
+        if (integer && ['.', ',', 'e', 'E', '-', '+'].includes(e.key)) e.preventDefault();
+      }}
       value={draft}
       aria-label={label}
       onChange={(e) => {
+        if (integer && e.target.value !== '' && !/^\d+$/.test(e.target.value)) return;
         setDraft(e.target.value);
         if (
           e.target.value !== '' &&
@@ -132,6 +139,10 @@ export default function Checkout() {
   } catch {
     /* Restored products are loaded alongside their cart. */
   }
+  const invalidQuantity = cart.lines.some((line) => {
+    const product = products.find((p) => p.id === line.product_id);
+    return product && ['pcs', 'pack'].includes(product.unit) && !Number.isInteger(line.qty);
+  });
   const amount = totals?.total ?? 0;
   const cash = Number(tender || '0') * 100;
   const localName = (p: Product) => (i18n.language === 'si' ? p.name_si : p.name_en);
@@ -191,6 +202,10 @@ export default function Checkout() {
   }
   async function pay(payments?: Payment[]) {
     if (transactionLock.current || !totals || !cart.lines.length) return;
+    if (invalidQuantity) {
+      toast.error(t('wholeQuantity'));
+      return;
+    }
     transactionLock.current = true;
     setPaying(true);
     try {
@@ -378,7 +393,8 @@ export default function Checkout() {
                         <td>
                           <Numeric
                             value={line.qty}
-                            min={0.001}
+                            min={isMeasuredUnit(line.product.unit) ? 0.001 : 1}
+                            integer={!isMeasuredUnit(line.product.unit)}
                             step={['kg', 'g', 'l', 'ml'].includes(line.product.unit) ? '.001' : '1'}
                             label={`${t('qty')} ${localName(line.product)}`}
                             onChange={(v) => editLine(line.product_id, 'qty', v)}
@@ -432,6 +448,11 @@ export default function Checkout() {
                   </tbody>
                 </table>
               </div>
+            )}
+            {invalidQuantity && (
+              <p className="quantity-warning" role="alert">
+                {t('wholeQuantity')}
+              </p>
             )}
             <div className="cart-bottom">
               <span className="save-status">
@@ -612,7 +633,7 @@ export default function Checkout() {
                 )}
                 <Button
                   className="pay-button"
-                  disabled={!cart.lines.length || paying || saving}
+                  disabled={!cart.lines.length || paying || saving || invalidQuantity}
                   onClick={() => safe(() => pay())}
                 >
                   <span>{t(paying ? 'loading' : 'pay')}</span>
@@ -621,7 +642,7 @@ export default function Checkout() {
                 <Button
                   variant="ghost"
                   className="split-button"
-                  disabled={!cart.lines.length}
+                  disabled={!cart.lines.length || invalidQuantity}
                   onClick={() => {
                     setSplitPayments([{ method: 'cash', amount, tendered: amount, reference: '' }]);
                     setSplit(true);

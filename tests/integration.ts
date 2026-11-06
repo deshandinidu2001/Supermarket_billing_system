@@ -36,6 +36,18 @@ async function run() {
   assert.equal(owner.must_change_password, 1);
   assert.throws(() => inventory.search(), /passwordChangeRequired/);
   auth.changePassword('ajith123', 'owner-test-2026', '4321');
+  const ownerBeforeRename = store.get('SELECT * FROM users WHERE id=?', owner.id)!;
+  auth.renameUser({ id: owner.id, display_name: 'Review Owner' });
+  assert.equal(auth.current().display_name, 'Review Owner');
+  const cashierAccount = management.list('users').find((account) => account.role === 'cashier')!;
+  auth.renameUser({ id: String(cashierAccount.id), display_name: 'Review Cashier' });
+  assert.equal(
+    store.get('SELECT display_name FROM users WHERE id=?', cashierAccount.id)!.display_name,
+    'Review Cashier',
+  );
+  const ownerAfterRename = store.get('SELECT * FROM users WHERE id=?', owner.id)!;
+  for (const key of ['username', 'password_hash', 'role', 'active'])
+    assert.equal(ownerAfterRename[key], ownerBeforeRename[key]);
   console.log('Phase 3: bilingual/barcode search, cost redaction and stock ledger');
   const products = inventory.search();
   assert.equal(products.length, 40);
@@ -103,6 +115,22 @@ async function run() {
     store.get('SELECT id FROM shifts WHERE user_id=? AND end_time IS NULL', owner.id),
     undefined,
   );
+  for (const unit of ['pcs', 'pack']) {
+    const counted = products.find((item) => item.unit === unit)!;
+    assert.throws(
+      () =>
+        pos.saveCart({
+          ...emptyCart(),
+          lines: [{ product_id: counted.id, qty: 3.5, discount_percent: 0 }],
+        }),
+      /wholeQuantity/,
+    );
+    pos.saveCart({
+      ...emptyCart(),
+      lines: [{ product_id: counted.id, qty: 3, discount_percent: 0 }],
+    });
+    assert.equal(pos.loadCart().lines[0].qty, 3);
+  }
   const cart = {
     ...emptyCart(),
     lines: [{ product_id: product.id, qty: 1.25, discount_percent: 2 }],
@@ -359,6 +387,8 @@ async function run() {
   auth.logout();
   auth.login('cashier', 'cashier-test-2026');
   assert.throws(() => auth.authorize('removeProduct'), /forbidden/);
+  assert.throws(() => auth.authorize('renameUser'), /forbidden/);
+  assert.throws(() => auth.renameUser({ id: owner.id, display_name: 'Forbidden' }), /forbidden/);
   assert.throws(() => inventory.remove(archivedProduct.id), /forbidden/);
   auth.lastActivity = Date.now() - store.settings().idle_minutes * 60000 - 1;
   assert.throws(() => auth.current(), /sessionExpired/);
