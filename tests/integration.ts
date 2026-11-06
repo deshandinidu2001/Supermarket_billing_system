@@ -156,23 +156,14 @@ async function run() {
     Number(store.get('SELECT cost FROM sales WHERE id=?', sale.id)!.cost),
     immutableCost,
   );
-  pos.saveCart({
-    ...emptyCart(),
-    lines: [{ product_id: product.id, qty: 999999, discount_percent: 0 }],
-  });
   const stockBeforeFailure = inventory.byIds([product.id])[0].stock;
-  assert.throws(() =>
-    pos.checkout({
-      request_id: uid(),
-      payments: [
-        {
-          method: 'cash',
-          amount: 999999 * product.selling_price,
-          tendered: 999999 * product.selling_price,
-          reference: '',
-        },
-      ],
-    }),
+  assert.throws(
+    () =>
+      pos.saveCart({
+        ...emptyCart(),
+        lines: [{ product_id: product.id, qty: 999999, discount_percent: 0 }],
+      }),
+    /insufficientStock/,
   );
   assert.equal(inventory.byIds([product.id])[0].stock, stockBeforeFailure);
   pos.saveCart(emptyCart());

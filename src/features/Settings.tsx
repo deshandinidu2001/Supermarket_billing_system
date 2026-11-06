@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { displayDate, safe } from '../lib/utils';
 import { useStore } from '../store';
+import type { Row } from '../../shared/types';
 import type { Input } from '../../shared/contracts';
 import { Button } from '../components/ui/button';
 import { Modal } from '../components/ui/dialog';
@@ -16,7 +17,9 @@ export default function Settings() {
   const [password, setPassword] = useState(false),
     [busy, setBusy] = useState(false);
   const users = useLoad(() => api('list', { entity: 'users' }));
+  const [pinAccount, setPinAccount] = useState<Row | null>(null);
   const s = data.settings;
+  const verification = useLoad(() => api('backupStatus', {}), [s.last_backup]);
   const sections: { title: string; fields: Field[] }[] = [
     {
       title: 'shopDetails',
@@ -99,6 +102,7 @@ export default function Settings() {
         if (result) toast.success(t('backupSaved'));
         await useStore.getState().boot();
       } finally {
+        verification.reload();
         setBusy(false);
       }
     });
@@ -124,6 +128,28 @@ export default function Settings() {
                 <div>
                   <strong>{t(String(account.role))}</strong>
                   <small>{account.username}</small>
+                  {account.role === 'cashier' && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => setPinAccount(account)}>
+                        {t('setCashierPin')}
+                      </Button>
+                      {!!account.pin_enabled && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            safe(async () => {
+                              await api('setCashierPin', { id: String(account.id), pin: null });
+                              users.reload();
+                              toast.success(t('saved'));
+                            })
+                          }
+                        >
+                          {t('removeCashierPin')}
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </div>
                 <RecordForm
                   key={`${account.id}-${account.display_name}`}
@@ -169,6 +195,36 @@ export default function Settings() {
             <small style={{ marginTop: 12 }}>{t('backup_folder')}</small>
             {s.backup_folder || '—'}
           </div>
+          <div
+            className={`backup-verification ${verification.data?.status === 'failed' ? 'verification-failed' : ''}`}
+            role="status"
+          >
+            <strong>{t('backupVerification')}</strong>
+            <p>
+              {verification.data
+                ? `${t(String(verification.data.status))} · ${displayDate(String(verification.data.created_at), true)}`
+                : t('notVerified')}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            disabled={busy || !s.last_backup}
+            onClick={() =>
+              safe(async () => {
+                setBusy(true);
+                try {
+                  await api('verifyLatestBackup', {});
+                  toast.success(t('backupVerified'));
+                } finally {
+                  verification.reload();
+                  setBusy(false);
+                }
+              })
+            }
+          >
+            <ShieldCheck size={16} />
+            {t('verifyLatestBackup')}
+          </Button>
           <Button onClick={() => backup(false)} disabled={busy}>
             <Download size={16} />
             {t('backupNow')}
@@ -220,6 +276,27 @@ export default function Settings() {
           </Button>
         </aside>
       </div>
+      {pinAccount && (
+        <Modal
+          open
+          onClose={() => setPinAccount(null)}
+          title={`${t('setCashierPin')}: ${pinAccount.display_name}`}
+        >
+          <p className="record-description">{t('cashierPinHint')}</p>
+          <RecordForm
+            fields={[field('cashierPin', { type: 'password', required: true })]}
+            onSave={async (values) => {
+              await api('setCashierPin', {
+                id: String(pinAccount.id),
+                pin: String(values.cashierPin),
+              });
+              users.reload();
+              setPinAccount(null);
+              toast.success(t('saved'));
+            }}
+          />
+        </Modal>
+      )}
       <Modal open={password} onClose={() => setPassword(false)} title={t('changePassword')}>
         <RecordForm
           fields={[

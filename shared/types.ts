@@ -27,6 +27,7 @@ export interface Product {
   quick_access: number;
   supplier_id?: string | null;
   stock: number;
+  available_stock?: number;
   image: string | null;
 }
 export interface CartLine {
@@ -50,6 +51,7 @@ export interface Payment {
   tendered: number;
 }
 export interface Receipt {
+  barcode: string;
   sale: Row;
   items: Row[];
   payments: Row[];

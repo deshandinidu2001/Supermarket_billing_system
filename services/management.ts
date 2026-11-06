@@ -35,11 +35,11 @@ export class Management {
     switch (entity) {
       case 'users':
         return this.store.all(
-          'SELECT id,username,display_name,role,active,language,must_change_password FROM users ORDER BY role DESC,username',
+          'SELECT id,username,display_name,role,active,language,must_change_password,CASE WHEN cashier_pin_hash IS NULL THEN 0 ELSE 1 END pin_enabled FROM users ORDER BY role DESC,username',
         );
       case 'suppliers':
         return this.store.all(
-          'SELECT s.*,COALESCE((SELECT SUM(total) FROM purchases WHERE supplier_id=s.id),0)-COALESCE((SELECT SUM(amount) FROM supplier_payments WHERE supplier_id=s.id),0) balance FROM suppliers s WHERE name LIKE ? OR phone LIKE ? ORDER BY name',
+          'SELECT s.*,COALESCE((SELECT SUM(total) FROM purchases WHERE supplier_id=s.id),0)-COALESCE((SELECT SUM(amount) FROM supplier_payments WHERE supplier_id=s.id),0)-COALESCE((SELECT SUM(total) FROM supplier_returns WHERE supplier_id=s.id),0) balance FROM suppliers s WHERE name LIKE ? OR phone LIKE ? ORDER BY name',
           like,
           like,
         );
@@ -161,7 +161,8 @@ export class Management {
     const user = this.auth.owner();
     const balance = Number(
       this.store.get(
-        'SELECT COALESCE((SELECT SUM(total) FROM purchases WHERE supplier_id=?),0)-COALESCE((SELECT SUM(amount) FROM supplier_payments WHERE supplier_id=?),0) balance',
+        'SELECT COALESCE((SELECT SUM(total) FROM purchases WHERE supplier_id=?),0)-COALESCE((SELECT SUM(amount) FROM supplier_payments WHERE supplier_id=?),0)-COALESCE((SELECT SUM(total) FROM supplier_returns WHERE supplier_id=?),0) balance',
+        data.supplier_id,
         data.supplier_id,
         data.supplier_id,
       )?.balance ?? 0,

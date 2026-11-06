@@ -144,6 +144,44 @@ export const settingsSchema = z.object({
 });
 const range = { from: date, to: date };
 export const schemas = {
+  cashierAccounts: z.object({}),
+  pinLogin: z.object({ id, pin }),
+  setCashierPin: z.object({ id, pin: pin.nullable() }),
+  stocktakes: z.object({}),
+  startStocktake: z.object({}),
+  stocktake: z.object({ id }),
+  saveStocktake: z.object({
+    id,
+    complete: z.boolean().default(false),
+    counts: z
+      .array(
+        z.object({
+          product_id: id,
+          counted_qty: z
+            .number()
+            .min(0)
+            .max(1e6)
+            .refine((v) => Math.abs(v * 1000 - Math.round(v * 1000)) < 0.00001)
+            .nullable(),
+        }),
+      )
+      .max(10000),
+  }),
+  supplierReturnBatches: z.object({ supplier_id: id }),
+  supplierReturns: z.object({}),
+  supplierReturnDetails: z.object({ id }),
+  supplierReturn: z.object({
+    request_id: id,
+    supplier_id: id,
+    date,
+    reason: text.min(1),
+    items: z
+      .array(z.object({ batch_id: id, qty }))
+      .min(1)
+      .max(100),
+  }),
+  backupStatus: z.object({}),
+  verifyLatestBackup: z.object({}),
   login: z.object({ username: text.min(1), password: z.string().min(1).max(200) }),
   logout: z.object({}),
   activity: z.object({}),
@@ -280,6 +318,19 @@ export const schemas = {
 export type Action = keyof typeof schemas;
 export type Input<K extends Action> = z.input<(typeof schemas)[K]>;
 export interface Outputs {
+  cashierAccounts: Row[];
+  pinLogin: User;
+  setCashierPin: boolean;
+  stocktakes: Row[];
+  startStocktake: string;
+  stocktake: { session: Row; lines: Row[] };
+  saveStocktake: boolean;
+  supplierReturnBatches: Row[];
+  supplierReturns: Row[];
+  supplierReturnDetails: { record: Row; items: Row[] };
+  supplierReturn: string;
+  backupStatus: Row | null;
+  verifyLatestBackup: Row;
   login: User;
   logout: boolean;
   activity: boolean;

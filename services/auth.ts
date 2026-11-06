@@ -65,6 +65,39 @@ export class Auth {
     this.store.audit(this.userId, 'login');
     return this.current(true);
   }
+  cashierAccounts() {
+    return this.store.all(
+      "SELECT id,display_name FROM users WHERE role='cashier' AND active=1 AND cashier_pin_hash IS NOT NULL AND must_change_password=0 ORDER BY display_name",
+    );
+  }
+  setCashierPin(id: string, pin: string | null) {
+    const owner = this.owner();
+    requireValue(this.store.get("SELECT id FROM users WHERE id=? AND role='cashier'", id));
+    this.store.update('users', id, { cashier_pin_hash: pin ? bcrypt.hashSync(pin, 12) : null });
+    this.store.audit(owner.id, 'cashierPinChanged', id);
+    return true;
+  }
+  loginPin(id: string, pin: string) {
+    this.limited('pin-login');
+    this.limited(`pin-login:${id}`);
+    const account = this.store.get(
+      "SELECT * FROM users WHERE id=? AND role='cashier' AND active=1",
+      id,
+    );
+    if (!account?.cashier_pin_hash || !bcrypt.compareSync(pin, String(account.cashier_pin_hash))) {
+      this.fail('pin-login');
+      this.fail(`pin-login:${id}`);
+      this.store.audit(null, 'pinLoginFailed', id);
+      throw new AppError('invalidPin');
+    }
+    if (account.must_change_password) throw new AppError('passwordChangeRequired');
+    this.failures.delete('pin-login');
+    this.failures.delete(`pin-login:${id}`);
+    this.userId = id;
+    this.lastActivity = Date.now();
+    this.store.audit(id, 'pinLogin');
+    return this.current();
+  }
   logout() {
     if (this.userId) this.store.audit(this.userId, 'logout');
     this.userId = null;

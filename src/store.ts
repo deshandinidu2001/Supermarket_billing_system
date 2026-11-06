@@ -11,6 +11,7 @@ interface State {
   dark: boolean;
   login: (username: string, password: string) => Promise<void>;
   boot: () => Promise<void>;
+  pinLogin: (id: string, pin: string) => Promise<void>;
   lock: () => Promise<void>;
   reset: () => void;
   cache: (products: Product[]) => void;
@@ -36,6 +37,13 @@ export const useStore = create<State>((set, get) => ({
     set({ user });
     language(user.language);
     if (!user.must_change_password) await get().boot();
+  },
+  pinLogin: async (id, pin) => {
+    await queue.catch(() => {});
+    const user = await api('pinLogin', { id, pin });
+    set({ user, bootstrap: null, products: [], cart: emptyCart(), saving: false });
+    language(user.language);
+    await get().boot();
   },
   boot: async () => {
     const data = await api('bootstrap', {});

@@ -53,4 +53,17 @@ CREATE TABLE counters (id TEXT PRIMARY KEY, sequence INTEGER NOT NULL DEFAULT 0,
       UPDATE counters SET counter_id=id,id=${uuidSql};
       CREATE UNIQUE INDEX idx_counter_id ON counters(counter_id);`,
   },
+  {
+    version: 4,
+    sql: `
+ALTER TABLE users ADD COLUMN cashier_pin_hash TEXT;
+CREATE TABLE stocktakes (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','completed')), created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE stocktake_lines (id TEXT PRIMARY KEY, stocktake_id TEXT NOT NULL REFERENCES stocktakes(id), product_id TEXT NOT NULL REFERENCES products(id), expected_qty REAL NOT NULL, counted_qty REAL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(stocktake_id,product_id));
+CREATE TABLE supplier_returns (id TEXT PRIMARY KEY, request_id TEXT NOT NULL UNIQUE, supplier_id TEXT NOT NULL REFERENCES suppliers(id), user_id TEXT NOT NULL REFERENCES users(id), date TEXT NOT NULL, reason TEXT NOT NULL, total INTEGER NOT NULL CHECK(total>=0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE supplier_return_items (id TEXT PRIMARY KEY, return_id TEXT NOT NULL REFERENCES supplier_returns(id), batch_id TEXT NOT NULL REFERENCES batches(id), product_id TEXT NOT NULL REFERENCES products(id), qty REAL NOT NULL CHECK(qty>0), cost_price INTEGER NOT NULL, amount INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE INDEX idx_supplier_returns_supplier ON supplier_returns(supplier_id);
+CREATE INDEX idx_supplier_return_batch ON supplier_return_items(batch_id);
+CREATE TABLE backup_verifications (id TEXT PRIMARY KEY, path TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('passed','failed')), message TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+`,
+  },
 ];

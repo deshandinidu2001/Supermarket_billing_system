@@ -21,9 +21,18 @@ export default function Sales() {
     <>
       <PageTitle title={t('nav.sales')} />
       <section className="panel">
-        <div className="content-toolbar">
-          <SearchBox value={q} onChange={setQ} placeholder={t('bill_no')} />
-        </div>
+        <form
+          className="content-toolbar"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (q.trim()) setBill(q.trim());
+          }}
+        >
+          <SearchBox value={q} onChange={setQ} placeholder={t('scanReceiptHint')} />
+          <Button type="submit" disabled={!q.trim()}>
+            {t('findBill')}
+          </Button>
+        </form>
         {error ? (
           <ErrorState retry={reload} />
         ) : !data ? (

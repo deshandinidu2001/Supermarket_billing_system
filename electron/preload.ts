@@ -1,6 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { Action, Bridge, Input } from '../shared/contracts';
 const actions = new Set([
+  'cashierAccounts',
+  'pinLogin',
+  'setCashierPin',
+  'stocktakes',
+  'startStocktake',
+  'stocktake',
+  'saveStocktake',
+  'supplierReturnBatches',
+  'supplierReturns',
+  'supplierReturnDetails',
+  'supplierReturn',
+  'backupStatus',
+  'verifyLatestBackup',
   'login',
   'logout',
   'activity',

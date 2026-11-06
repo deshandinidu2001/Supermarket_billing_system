@@ -15,7 +15,7 @@ export class Inventory {
     const term = query.trim();
     const condition = (active ? 'p.active=1' : '1=1') + (categoryId ? ' AND p.category_id=?' : '');
     const filters = categoryId ? [categoryId] : [];
-    const select = `SELECT p.id,p.sku,p.name_en,p.name_si,p.category_id,c.name_en category_en,c.name_si category_si,p.unit,p.selling_price,p.mrp,p.reorder_level,p.active,p.quick_access,p.image,COALESCE((SELECT barcode FROM product_barcodes WHERE product_id=p.id ORDER BY created_at,id LIMIT 1),'') barcode,COALESCE((SELECT ROUND(SUM(qty),3) FROM batches WHERE product_id=p.id),0) stock${user.role === 'owner' ? ',p.cost_price,p.supplier_id' : ''} FROM products p JOIN categories c ON c.id=p.category_id`;
+    const select = `SELECT p.id,p.sku,p.name_en,p.name_si,p.category_id,c.name_en category_en,c.name_si category_si,p.unit,p.selling_price,p.mrp,p.reorder_level,p.active,p.quick_access,p.image,COALESCE((SELECT barcode FROM product_barcodes WHERE product_id=p.id ORDER BY created_at,id LIMIT 1),'') barcode,COALESCE((SELECT ROUND(SUM(qty),3) FROM batches WHERE product_id=p.id),0) stock,COALESCE((SELECT ROUND(SUM(MAX(qty,0)),3) FROM batches WHERE product_id=p.id AND (expiry_date IS NULL OR expiry_date>=date('now','localtime'))),0) available_stock${user.role === 'owner' ? ',p.cost_price,p.supplier_id' : ''} FROM products p JOIN categories c ON c.id=p.category_id`;
     if (term) {
       const exact = this.store.all<Product>(
         `${select} WHERE ${condition} AND (p.sku=? OR p.id IN (SELECT product_id FROM product_barcodes WHERE barcode=?)) LIMIT ?`,
@@ -41,7 +41,7 @@ export class Inventory {
   byIds(ids: string[]): Product[] {
     if (!ids.length) return [];
     return this.store.all<Product>(
-      `SELECT p.*,c.name_en category_en,c.name_si category_si,COALESCE((SELECT barcode FROM product_barcodes WHERE product_id=p.id LIMIT 1),'') barcode,COALESCE((SELECT ROUND(SUM(qty),3) FROM batches WHERE product_id=p.id),0) stock FROM products p JOIN categories c ON p.category_id=c.id WHERE p.id IN (${ids.map(() => '?').join(',')})`,
+      `SELECT p.*,c.name_en category_en,c.name_si category_si,COALESCE((SELECT barcode FROM product_barcodes WHERE product_id=p.id LIMIT 1),'') barcode,COALESCE((SELECT ROUND(SUM(qty),3) FROM batches WHERE product_id=p.id),0) stock,COALESCE((SELECT ROUND(SUM(MAX(qty,0)),3) FROM batches WHERE product_id=p.id AND (expiry_date IS NULL OR expiry_date>=date('now','localtime'))),0) available_stock FROM products p JOIN categories c ON p.category_id=c.id WHERE p.id IN (${ids.map(() => '?').join(',')})`,
       ...ids,
     );
   }

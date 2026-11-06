@@ -7,12 +7,22 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from 'react';
-import { HashRouter, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import {
+  HashRouter,
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
+  ArrowRightLeft,
+  ClipboardCheck,
   Activity,
   ArrowRight,
   BarChart3,
@@ -50,7 +60,10 @@ import { safe } from './lib/utils';
 import { Button } from './components/ui/button';
 import { Modal } from './components/ui/dialog';
 import { Loading } from './components/common';
+import CashierPinForm from './components/CashierPinForm';
 import { RecordForm, field } from './components/forms';
+const Stocktaking = lazy(() => import('./features/Stocktaking'));
+const SupplierReturns = lazy(() => import('./features/SupplierReturns'));
 const Checkout = lazy(() => import('./features/Checkout'));
 const Dashboard = lazy(() => import('./features/Dashboard'));
 const Products = lazy(() => import('./features/Products'));
@@ -126,6 +139,7 @@ function LanguageButton() {
 function Login() {
   const { t } = useTranslation();
   const login = useStore((s) => s.login);
+  const [pinMode, setPinMode] = useState(false);
   const [busy, setBusy] = useState(false);
   const {
     register,
@@ -178,41 +192,53 @@ function Login() {
           </span>
           <h2>{t('welcome')}</h2>
           <p>{t('loginHint')}</p>
-          <form
-            onSubmit={(e) => {
-              void handleSubmit(async (values) => {
-                setBusy(true);
-                try {
-                  await login(values.username, values.password);
-                } finally {
-                  setBusy(false);
-                }
-              })(e).catch(() => {});
-            }}
-          >
-            <label className="field">
-              <span>{t('username')}</span>
-              <input
-                {...register('username')}
-                autoFocus
-                autoComplete="username"
-                aria-invalid={!!errors.username}
-              />
-            </label>
-            <label className="field">
-              <span>{t('password')}</span>
-              <input
-                {...register('password')}
-                type="password"
-                autoComplete="current-password"
-                aria-invalid={!!errors.password}
-              />
-            </label>
-            <Button className="login-submit" disabled={busy || !window.pos}>
-              {busy ? t('loading') : t('signIn')}
-              <ArrowRight size={18} />
-            </Button>
-          </form>
+          <div className="login-method-switch overview-source">
+            <button type="button" aria-pressed={!pinMode} onClick={() => setPinMode(false)}>
+              {t('password')}
+            </button>
+            <button type="button" aria-pressed={pinMode} onClick={() => setPinMode(true)}>
+              {t('cashierPin')}
+            </button>
+          </div>
+          {pinMode ? (
+            <CashierPinForm />
+          ) : (
+            <form
+              onSubmit={(e) => {
+                void handleSubmit(async (values) => {
+                  setBusy(true);
+                  try {
+                    await login(values.username, values.password);
+                  } finally {
+                    setBusy(false);
+                  }
+                })(e).catch(() => {});
+              }}
+            >
+              <label className="field">
+                <span>{t('username')}</span>
+                <input
+                  {...register('username')}
+                  autoFocus
+                  autoComplete="username"
+                  aria-invalid={!!errors.username}
+                />
+              </label>
+              <label className="field">
+                <span>{t('password')}</span>
+                <input
+                  {...register('password')}
+                  type="password"
+                  autoComplete="current-password"
+                  aria-invalid={!!errors.password}
+                />
+              </label>
+              <Button className="login-submit" disabled={busy || !window.pos}>
+                {busy ? t('loading') : t('signIn')}
+                <ArrowRight size={18} />
+              </Button>
+            </form>
+          )}
           {!window.pos ? (
             <div className="notice notice-amber">{t('noElectron')}</div>
           ) : (
@@ -266,9 +292,11 @@ const entries = [
   { path: 'returns', icon: RotateCcw, owner: false },
   { path: 'sales', icon: ReceiptText, owner: false },
   { path: 'products', icon: Boxes, owner: true },
+  { path: 'stocktaking', icon: ClipboardCheck, owner: true },
   { path: 'categories', icon: ClipboardList, owner: true },
   { path: 'suppliers', icon: Truck, owner: true },
   { path: 'purchases', icon: PackageCheck, owner: true },
+  { path: 'supplierReturns', icon: Truck, owner: true },
   { path: 'cheques', icon: CreditCard, owner: true },
   { path: 'expenses', icon: Wallet, owner: true },
   { path: 'reports', icon: BarChart3, owner: true },
@@ -283,6 +311,8 @@ function Shell() {
     toggle = useStore((s) => s.toggleTheme),
     lock = useStore((s) => s.lock);
   const location = useLocation();
+  const navigate = useNavigate();
+  const [switching, setSwitching] = useState(false);
   const [menu, setMenu] = useState(false),
     [alerts, setAlerts] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(
@@ -412,6 +442,15 @@ function Shell() {
               </Button>
             )}
             <span className="header-divider" />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('switchCashier')}
+              title={t('switchCashier')}
+              onClick={() => setSwitching(true)}
+            >
+              <ArrowRightLeft size={18} />
+            </Button>
             <div className="user-avatar">{user.display_name.slice(0, 1)}</div>
             <div className="header-user">
               <strong>{user.display_name}</strong>
@@ -443,6 +482,8 @@ function Shell() {
                   <>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/products" element={<Products />} />
+                    <Route path="/stocktaking" element={<Stocktaking />} />
+                    <Route path="/supplierReturns" element={<SupplierReturns />} />
                     {(
                       ['categories', 'suppliers', 'cheques', 'expenses', 'users', 'audit'] as const
                     ).map((entity) => (
@@ -468,6 +509,15 @@ function Shell() {
           </ErrorBoundary>
         </main>
       </div>
+      <Modal open={switching} onClose={() => setSwitching(false)} title={t('switchCashier')}>
+        <p className="record-description">{t('switchCashierHint')}</p>
+        <CashierPinForm
+          onSuccess={() => {
+            setSwitching(false);
+            navigate('/checkout');
+          }}
+        />
+      </Modal>
       <Modal open={alerts} onClose={() => setAlerts(false)} title={t('alerts')}>
         <div className="alerts-list">
           {data &&
@@ -502,7 +552,13 @@ export default function App() {
   return (
     <ErrorBoundary>
       <HashRouter>
-        {!user ? <Login /> : user.must_change_password ? <PasswordChange /> : <Shell />}
+        {!user ? (
+          <Login />
+        ) : user.must_change_password ? (
+          <PasswordChange />
+        ) : (
+          <Shell key={user.id} />
+        )}
         <Toaster richColors position="top-right" theme={dark ? 'dark' : 'light'} closeButton />
       </HashRouter>
     </ErrorBoundary>

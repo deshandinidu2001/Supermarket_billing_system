@@ -138,7 +138,7 @@ export class Reports {
         break;
       case 'supplierBalances':
         rows = this.store.all(
-          'SELECT s.name,s.phone,COALESCE((SELECT SUM(total) FROM purchases WHERE supplier_id=s.id),0) purchases,COALESCE((SELECT SUM(amount) FROM supplier_payments WHERE supplier_id=s.id),0) paid,COALESCE((SELECT SUM(total) FROM purchases WHERE supplier_id=s.id),0)-COALESCE((SELECT SUM(amount) FROM supplier_payments WHERE supplier_id=s.id),0) balance FROM suppliers s ORDER BY balance DESC',
+          'SELECT s.name,s.phone,COALESCE((SELECT SUM(total) FROM purchases WHERE supplier_id=s.id),0) purchases,COALESCE((SELECT SUM(amount) FROM supplier_payments WHERE supplier_id=s.id),0) paid,COALESCE((SELECT SUM(total) FROM purchases WHERE supplier_id=s.id),0)-COALESCE((SELECT SUM(amount) FROM supplier_payments WHERE supplier_id=s.id),0)-COALESCE((SELECT SUM(total) FROM supplier_returns WHERE supplier_id=s.id),0) balance FROM suppliers s ORDER BY balance DESC',
         );
         break;
       case 'returns':

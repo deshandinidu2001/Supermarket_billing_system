@@ -19,6 +19,7 @@ export default function CheckoutCatalogue({
 }) {
   const { t, i18n } = useTranslation();
   const cache = useStore((s) => s.cache);
+  const cart = useStore((s) => s.cart);
   const [filter, setFilter] = useState({ query: '', category: '', page: 0 });
   const [items, setItems] = useState<Product[]>([]);
   const [more, setMore] = useState(false);
@@ -104,12 +105,16 @@ export default function CheckoutCatalogue({
         ) : (
           <div className="catalogue-grid">
             {items.map((product) => {
+              const remaining =
+                (product.available_stock ?? product.stock) -
+                (cart.lines.find((line) => line.product_id === product.id)?.qty ?? 0);
               const name = i18n.language === 'si' ? product.name_si : product.name_en;
               return (
                 <button
                   className="catalogue-product"
                   key={product.id}
                   aria-label={`${t('addItem')}: ${name}`}
+                  disabled={remaining <= 0}
                   onClick={() => onAdd(product)}
                 >
                   <span className="catalogue-image">
@@ -130,7 +135,9 @@ export default function CheckoutCatalogue({
                     {money(product.selling_price)} <small>/ {t(`units.${product.unit}`)}</small>
                   </strong>
                   <span className={`catalogue-stock ${product.stock <= 0 ? 'out-of-stock' : ''}`}>
-                    {t('stock')}: {product.stock} {t(`units.${product.unit}`)}
+                    {remaining <= 0
+                      ? t('outOfStock')
+                      : `${t('availableStock')}: ${remaining} ${t(`units.${product.unit}`)}`}
                   </span>
                 </button>
               );

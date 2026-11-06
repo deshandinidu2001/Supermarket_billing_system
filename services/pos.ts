@@ -13,6 +13,7 @@ import {
   validatePayments,
   type Batch,
 } from './calculations';
+import { receiptBarcode } from './receipt-barcode';
 import { AppError, requireValue } from './errors';
 export class POS {
   constructor(
@@ -36,6 +37,8 @@ export class POS {
     if (products.some((p) => !p.active)) throw new AppError('productUnavailable');
     for (const line of cart.lines) {
       const product = products.find((p) => p.id === line.product_id);
+      if (product && line.qty > (product.available_stock ?? product.stock))
+        throw new AppError('insufficientStock');
       if (product && ['pcs', 'pack'].includes(product.unit) && !Number.isInteger(line.qty))
         throw new AppError('wholeQuantity');
     }
@@ -347,6 +350,7 @@ export class POS {
       items = items.map(({ unit_cost: _unit_cost, cost_total: _cost_total, ...rest }) => rest);
     }
     return {
+      barcode: receiptBarcode(String(sale.bill_no)),
       sale,
       items,
       payments: this.store.all(

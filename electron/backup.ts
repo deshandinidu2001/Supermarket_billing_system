@@ -13,6 +13,35 @@ export class Backups {
     public store: Store,
     public auth: Auth,
   ) {}
+  status() {
+    this.auth.owner();
+    return this.store.get('SELECT * FROM backup_verifications ORDER BY rowid DESC LIMIT 1') ?? null;
+  }
+  private verify(path: string) {
+    try {
+      verifyBackup(path);
+      const id = this.store.insert('backup_verifications', { path, status: 'passed', message: '' });
+      return this.store.get('SELECT * FROM backup_verifications WHERE id=?', id)!;
+    } catch (error) {
+      this.store.insert('backup_verifications', {
+        path,
+        status: 'failed',
+        message: 'invalidBackup',
+      });
+      throw error;
+    }
+  }
+  verifyLatest(automatic = false) {
+    if (!automatic) this.auth.owner();
+    const folder = this.store.settings().backup_folder;
+    if (!folder || !existsSync(folder)) throw new AppError('noBackup');
+    const file = readdirSync(folder)
+      .filter((name) => /^ajith-backup-\d{4}-.*\.db$/.test(name))
+      .sort()
+      .reverse()[0];
+    if (!file) throw new AppError('noBackup');
+    return this.verify(join(folder, file));
+  }
   async backup(chooseFolder = false, automatic = false) {
     const user = automatic ? null : this.auth.owner();
     const s = this.store.settings();
@@ -35,10 +64,20 @@ export class Backups {
       mkdirSync(s.backup_folder, { recursive: true });
       const path = join(s.backup_folder, `ajith-backup-${now().replace(/[:.]/g, '-')}.db`);
       await this.store.db.backup(`${path}.partial`);
-      renameSync(`${path}.partial`, path);
-      verifyBackup(path);
-      s.last_backup = now();
-      this.store.saveSettings(s);
+      try {
+        verifyBackup(`${path}.partial`);
+        renameSync(`${path}.partial`, path);
+        this.verify(path);
+      } catch (error) {
+        if (existsSync(`${path}.partial`)) unlinkSync(`${path}.partial`);
+        this.store.insert('backup_verifications', {
+          path,
+          status: 'failed',
+          message: 'invalidBackup',
+        });
+        throw error;
+      }
+      this.store.saveSettings({ ...this.store.settings(), last_backup: now() });
       this.store.audit(user?.id ?? null, 'backup', null, { path, automatic });
       const files = readdirSync(s.backup_folder)
         .filter((f) => /^ajith-backup-\d{4}-.*\.db$/.test(f))
@@ -87,6 +126,8 @@ export class Backups {
       (!s.last_backup || new Date(s.last_backup).toDateString() !== new Date().toDateString())
     )
       await this.backup(false, true);
+    else if (s.backup_folder && !this.store.get('SELECT id FROM backup_verifications LIMIT 1'))
+      this.verifyLatest(true);
   }
 }
 export function verifyBackup(path: string) {
@@ -140,6 +181,26 @@ export function verifyBackup(path: string) {
       .get() as { value: string } | undefined;
     if (!settings || typeof JSON.parse(settings.value).shop_name !== 'string')
       throw new Error('settings');
+    // Open and read representative restored data, in addition to SQLite integrity checks.
+    db.prepare('SELECT id,username,role FROM users LIMIT 1').all();
+    db.prepare('SELECT id,bill_no,total FROM sales LIMIT 1').all();
+    db.prepare('SELECT id,name_en FROM products LIMIT 1').all();
+    if (version.v >= 4) {
+      db.prepare('SELECT cashier_pin_hash FROM users LIMIT 1').all();
+      db.prepare('SELECT expected_qty,counted_qty FROM stocktake_lines LIMIT 1').all();
+      db.prepare('SELECT request_id,supplier_id,total FROM supplier_returns LIMIT 1').all();
+    }
+    if (
+      version.v >= 4 &&
+      ![
+        'stocktakes',
+        'stocktake_lines',
+        'supplier_returns',
+        'supplier_return_items',
+        'backup_verifications',
+      ].every((name) => tables.some((table) => table.name === name))
+    )
+      throw new Error('schema');
   } catch {
     throw new AppError('invalidBackup');
   } finally {

@@ -7,6 +7,7 @@ import { seed } from '../db/seed';
 import { schemas, type Action, type Result } from '../shared/contracts';
 import { Auth } from '../services/auth';
 import { Inventory } from '../services/inventory';
+import { StockOperations } from '../services/stock-operations';
 import { Management } from '../services/management';
 import { POS } from '../services/pos';
 import { Reports } from '../services/reports';
@@ -24,6 +25,7 @@ import {
 let store: Store,
   auth: Auth,
   inventory: Inventory,
+  stockOperations: StockOperations,
   management: Management,
   pos: POS,
   reports: Reports,
@@ -57,15 +59,64 @@ function connect() {
   seed(store, !!devUrl || process.env.POS_DEMO === '1' || process.argv.includes('--seed'));
   auth = new Auth(store);
   inventory = new Inventory(store, auth);
+  stockOperations = new StockOperations(inventory);
   management = new Management(store, auth);
   pos = new POS(store, auth, inventory);
   reports = new Reports(store, auth);
   backups = new Backups(store, auth);
 }
 async function dispatch(action: Action, raw: unknown): Promise<unknown> {
-  if (!['login', 'logout', 'activity', 'changePassword', 'language'].includes(action))
+  if (
+    ![
+      'login',
+      'pinLogin',
+      'cashierAccounts',
+      'logout',
+      'activity',
+      'changePassword',
+      'language',
+    ].includes(action)
+  )
     auth.authorize(action);
   switch (action) {
+    case 'cashierAccounts':
+      schemas.cashierAccounts.parse(raw);
+      return auth.cashierAccounts();
+    case 'pinLogin': {
+      const d = schemas.pinLogin.parse(raw);
+      return auth.loginPin(d.id, d.pin);
+    }
+    case 'setCashierPin': {
+      const d = schemas.setCashierPin.parse(raw);
+      return auth.setCashierPin(d.id, d.pin);
+    }
+    case 'stocktakes':
+      schemas.stocktakes.parse(raw);
+      return stockOperations.stocktakes();
+    case 'startStocktake':
+      schemas.startStocktake.parse(raw);
+      return stockOperations.startStocktake();
+    case 'stocktake':
+      return stockOperations.stocktake(schemas.stocktake.parse(raw).id);
+    case 'saveStocktake':
+      return stockOperations.saveStocktake(schemas.saveStocktake.parse(raw));
+    case 'supplierReturnBatches':
+      return stockOperations.supplierReturnBatches(
+        schemas.supplierReturnBatches.parse(raw).supplier_id,
+      );
+    case 'supplierReturns':
+      schemas.supplierReturns.parse(raw);
+      return stockOperations.supplierReturns();
+    case 'supplierReturnDetails':
+      return stockOperations.supplierReturnDetails(schemas.supplierReturnDetails.parse(raw).id);
+    case 'supplierReturn':
+      return stockOperations.supplierReturn(schemas.supplierReturn.parse(raw));
+    case 'backupStatus':
+      schemas.backupStatus.parse(raw);
+      return backups.status();
+    case 'verifyLatestBackup':
+      schemas.verifyLatestBackup.parse(raw);
+      return backups.verifyLatest();
     case 'login': {
       const d = schemas.login.parse(raw);
       return auth.login(d.username, d.password);

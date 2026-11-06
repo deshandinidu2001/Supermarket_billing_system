@@ -11,6 +11,7 @@ import {
   Package,
   Pause,
   Plus,
+  Minus,
   Printer,
   QrCode,
   Scale,
@@ -41,6 +42,8 @@ import { RecordForm, field } from '../components/forms';
 import CheckoutCatalogue from '../components/CheckoutCatalogue';
 import MeasuredItemDialog from '../components/MeasuredItemDialog';
 import { isMeasuredUnit, type MeasuredUnit } from '../lib/measurement';
+const quickStep = (unit: string) =>
+  ['kg', 'l'].includes(unit) ? 0.25 : ['g', 'ml'].includes(unit) ? 250 : 1;
 const methodIcons = { cash: Banknote, card: CreditCard, qr: QrCode };
 function Numeric({
   value,
@@ -148,6 +151,12 @@ export default function Checkout() {
   const localName = (p: Product) => (i18n.language === 'si' ? p.name_si : p.name_en);
   const changeCart = (fn: (c: Cart) => Cart) => safe(() => mutate(fn));
   async function add(product: Product, quantity = 1) {
+    const existing =
+      useStore.getState().cart.lines.find((line) => line.product_id === product.id)?.qty ?? 0;
+    if (existing + quantity > (product.available_stock ?? product.stock)) {
+      toast.error(t('insufficientStock'));
+      return;
+    }
     cache([product]);
     await mutate((c) => {
       const line = c.lines.find((l) => l.product_id === product.id);
@@ -165,12 +174,22 @@ export default function Checkout() {
     searchRef.current?.focus();
   }
   function editLine(id: string, key: 'qty' | 'discount_percent', value: number) {
+    const product = products.find((p) => p.id === id);
+    if (key === 'qty' && product && value > (product.available_stock ?? product.stock)) {
+      toast.error(t('insufficientStock'));
+      return;
+    }
     changeCart((c) => ({
       ...c,
       lines: c.lines.map((l) => (l.product_id === id ? { ...l, [key]: value } : l)),
     }));
   }
   async function selectProduct(product: Product) {
+    const existing = cart.lines.find((line) => line.product_id === product.id)?.qty ?? 0;
+    if ((product.available_stock ?? product.stock) <= existing) {
+      toast.error(t('outOfStock'));
+      return;
+    }
     if (isMeasuredUnit(product.unit)) {
       setQuery('');
       setFocused(false);
@@ -324,6 +343,10 @@ export default function Checkout() {
                     <button
                       key={p.id}
                       className="search-result"
+                      disabled={
+                        (p.available_stock ?? p.stock) <=
+                        (cart.lines.find((line) => line.product_id === p.id)?.qty ?? 0)
+                      }
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => safe(() => selectProduct(p))}
                     >
@@ -391,14 +414,68 @@ export default function Checkout() {
                         </td>
                         <td className="price-col numeric">{money(line.product.selling_price)}</td>
                         <td>
-                          <Numeric
-                            value={line.qty}
-                            min={isMeasuredUnit(line.product.unit) ? 0.001 : 1}
-                            integer={!isMeasuredUnit(line.product.unit)}
-                            step={['kg', 'g', 'l', 'ml'].includes(line.product.unit) ? '.001' : '1'}
-                            label={`${t('qty')} ${localName(line.product)}`}
-                            onChange={(v) => editLine(line.product_id, 'qty', v)}
-                          />
+                          <div className="quantity-stepper">
+                            <button
+                              type="button"
+                              aria-label={`${t('decreaseQty')}: ${localName(line.product)}`}
+                              disabled={saving || line.qty <= quickStep(line.product.unit)}
+                              onClick={() =>
+                                editLine(
+                                  line.product_id,
+                                  'qty',
+                                  roundQty(line.qty - quickStep(line.product.unit)),
+                                )
+                              }
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <Numeric
+                              value={line.qty}
+                              min={isMeasuredUnit(line.product.unit) ? 0.001 : 1}
+                              integer={!isMeasuredUnit(line.product.unit)}
+                              step={
+                                ['kg', 'g', 'l', 'ml'].includes(line.product.unit) ? '.001' : '1'
+                              }
+                              label={`${t('qty')} ${localName(line.product)}`}
+                              onChange={(v) => editLine(line.product_id, 'qty', v)}
+                            />
+                            <button
+                              type="button"
+                              aria-label={`${t('increaseQty')}: ${localName(line.product)}`}
+                              disabled={
+                                saving ||
+                                line.qty + quickStep(line.product.unit) >
+                                  (line.product.available_stock ?? line.product.stock)
+                              }
+                              onClick={() =>
+                                editLine(
+                                  line.product_id,
+                                  'qty',
+                                  roundQty(line.qty + quickStep(line.product.unit)),
+                                )
+                              }
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                          {!isMeasuredUnit(line.product.unit) && (
+                            <div className="quantity-presets">
+                              {[1, 3, 5].map((value) => (
+                                <button
+                                  type="button"
+                                  key={value}
+                                  aria-label={`${t('setQty')} ${value}: ${localName(line.product)}`}
+                                  disabled={
+                                    saving ||
+                                    value > (line.product.available_stock ?? line.product.stock)
+                                  }
+                                  onClick={() => editLine(line.product_id, 'qty', value)}
+                                >
+                                  {value}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           {isMeasuredUnit(line.product.unit) && (
                             <button
                               type="button"

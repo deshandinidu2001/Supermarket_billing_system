@@ -201,6 +201,15 @@ try {
     supplier_id: null,
     image: null,
   });
+  const volumeProduct = (await invoke('products', { query: 'VOLUME-TEST' }))[0];
+  await invoke('adjustStock', {
+    product_id: volumeProduct.id,
+    batch_id: null,
+    qty: 10,
+    cost_price: 20000,
+    expiry_date: null,
+    reason: 'correction',
+  });
   await search.fill('VOLUME-TEST');
   await page.getByRole('button', { name: 'Add item: Measured oil', exact: true }).click();
   await expect(

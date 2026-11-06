@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import { money, safe } from '../lib/utils';
 import { Modal } from './ui/dialog';
 import { Button } from './ui/button';
-import { DataTable, Loading, useLoad } from './common';
+import { DataTable, ErrorState, Loading, useLoad } from './common';
 import type { Row } from '../../shared/types';
 export default function ReceiptView({
   billNo,
@@ -17,7 +17,7 @@ export default function ReceiptView({
   success?: boolean;
 }) {
   const { t } = useTranslation();
-  const { data } = useLoad(() => api('receipt', { bill_no: billNo }), [billNo]);
+  const { data, error, reload } = useLoad(() => api('receipt', { bill_no: billNo }), [billNo]);
   const grouped = new Map<string, Row>();
   for (const item of data?.items ?? []) {
     const id = String(item.line_id);
@@ -41,7 +41,9 @@ export default function ReceiptView({
           {billNo}
         </div>
       )}
-      {!data ? (
+      {error ? (
+        <ErrorState retry={reload} />
+      ) : !data ? (
         <Loading />
       ) : (
         <>
@@ -88,6 +90,10 @@ export default function ReceiptView({
                 </span>
               </div>
             </div>
+            <figure className="receipt-scan-code">
+              <img src={data.barcode} alt={`${t('receiptBarcode')}: ${billNo}`} />
+              <figcaption>{billNo}</figcaption>
+            </figure>
           </div>
           <div className="modal-actions">
             <Button variant="outline" onClick={() => print(true)}>

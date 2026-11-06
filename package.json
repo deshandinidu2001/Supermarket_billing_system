@@ -21,7 +21,9 @@
     "seed": "node scripts/seed.mjs",
     "dist": "npm run build && electron-builder --win nsis",
     "icon": "node scripts/icon.mjs",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "test:operations": "node scripts/operations-integration.mjs",
+    "test:operations:ui": "node scripts/operations-smoke.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
@@ -31,6 +33,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "bcryptjs": "^3.0.2",
     "better-sqlite3": "^12.4.1",
+    "bwip-js": "^4.11.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "exceljs": "^4.4.0",
@@ -55,6 +58,7 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.0.4",
+    "@zxing/library": "^0.23.0",
     "electron": "42.11.16",
     "electron-builder": "^26.0.12",
     "esbuild": "^0.25.11",
