@@ -1,213 +1,92 @@
-# Ajith Super Market
+# Ajith Super Market — Supermarket Billing System
 
-A local Windows desktop billing system for a single Sri Lankan supermarket. Electron runs the database, permissions, printing and backups; React provides the English/Sinhala interface. Installed copies work without an internet connection. There are no remote APIs, remote fonts, analytics or automatic update requests.
+An offline Windows desktop point-of-sale application built for supermarket operations in Sri Lanka. The software brings billing, inventory, purchasing, customer accounts, supplier accounts and business reporting into one English/Sinhala interface.
 
-## Run from source
+## What I Built
 
-Use Windows 10/11 x64 and Node.js 24 LTS with npm. Installing dependencies and building the installer initially require internet access. The installed application does not.
+Developed the desktop interface, local database, business logic and Electron integration for an end-to-end supermarket billing workflow. The application supports daily counter operations alongside stock control, financial records, staff access and data recovery.
 
-```powershell
-npm install
-npm run dev
-```
+### Checkout and Billing
 
-The development command starts Vite on `127.0.0.1:5173` and opens Electron. Opening Vite in an ordinary browser shows the login design, but database access requires Electron. Restart `npm run dev` after changing main-process or service code; renderer changes reload automatically.
+- Barcode and SKU entry, product browsing, category filters and English/Sinhala product search.
+- Product images, a cart with quantity controls, and weight/volume entry with unit conversion and automatic price calculation.
+- Item and bill discounts, bag charges, bill rounding and loyalty point redemption.
+- Recording of cash, card, QR, bank, customer credit and split payments, including payment references.
+- Held bills, saved unfinished carts, cashier shifts and sales history.
+- Receipt previews, thermal printing, PDF receipts, reprints and scannable bill-number barcodes.
 
-If your Windows network uses a locally trusted inspection certificate and npm reports `UNABLE_TO_VERIFY_LEAF_SIGNATURE`, enable Node's system certificate store for that PowerShell session, then retry:
+### Products and Inventory
 
-```powershell
-$env:NODE_OPTIONS = '--use-system-ca'
-npm install
-```
+- Product management with bilingual names, multiple barcodes, categories, suppliers, prices, images and reorder levels.
+- Batch-based stock tracking with purchase costs, expiry dates and stock movement history.
+- Separate visibility for recorded stock, sellable stock and expired stock; expired batches are excluded from sales.
+- Earliest-expiry stock allocation, with first-in-first-out ordering for matching expiry dates.
+- Stock adjustments with reasons, physical stocktaking with saved drafts, and reviewed count differences.
+- CSV and Excel catalogue import/export with validation.
 
-Certificate validation remains enabled. The lockfile pins the tested dependencies. The Electron version is pinned to a patched release compatible with the SQLite native binary. `postinstall` rebuilds native dependencies for Electron; do not replace this with a Node-only SQLite rebuild.
+### Purchasing and Supplier Accounts
 
-## First sign-in
+- Goods receiving against supplier invoices, with quantities, costs and optional batch expiry dates.
+- Supplier balances, payments and cheque tracking.
+- Supplier returns linked to purchased batches, with credits calculated from original purchase costs.
 
-Passwords must be changed on first sign-in. The owner also sets a 4–6 digit approval PIN; there is no default PIN. A new password must have at least eight characters and differ from the current password. The owner creates, disables and resets cashier accounts through **Settings → Account names → Manage cashiers**. Reset passwords require another change at sign-in. Five failed sign-in/PIN attempts trigger a one-minute cooldown.
+### Customers, Returns and Loyalty
 
-Development automatically adds sample data to an empty store: 40 bilingual products, six categories, five suppliers, ten customers, approximately four weeks of deterministic sample sales, expenses, expiry dates and a pending cheque. A packaged installation starts with the owner account and an empty catalogue.
+- Customer records, credit limits, outstanding balances and collection receipts.
+- Loyalty point earning, redemption and adjustment when sales are returned.
+- Bill-based returns and voids with owner approval for cashiers.
+- Refund calculations that retain original discounts and distinguish restockable items from damaged returns.
 
-To explicitly seed an empty development database:
+### Dashboard and Reporting
 
-```powershell
-npm run seed
-```
+- Revenue, cost of goods sold, gross profit, expenses and net profit summaries.
+- Sales and refund records, product/category profit, inventory, reorder and dead-stock reports.
+- Customer credit, supplier balance and cheque reports.
+- Date filters, charts, Excel/CSV/PDF exports and printable daily summaries.
+- Historical sale costs retained independently of later product price or purchase cost changes.
 
-Seeding is idempotent: existing products prevent sample insertion, and existing data is never reset. Close the app before running the seed command. To seed a separate dataset, set `POS_DATA_DIR` to a dedicated directory first. This developer environment variable also works with the packaged executable; do not point a demo at the live store folder.
+### Staff Access and Data Protection
 
-## Build and install
+- Owner and cashier roles, with permissions enforced in the Electron main process.
+- Password changes, cashier PIN switching, owner approval PINs, failed-attempt cooldowns and automatic locking.
+- Hashed passwords and PINs, validated requests and an isolated desktop interface.
+- Local SQLite storage, transactional sale completion and persistent unfinished bills.
+- Manual and scheduled backups, backup verification, restore and startup recovery workflows.
 
-```powershell
-npm run build
-npm run dist
-```
+### Interface and Desktop Experience
 
-The installer is generated at:
+- English and Sinhala interfaces with bundled fonts and remembered language preferences.
+- Light/dark themes, collapsible navigation, keyboard shortcuts and layouts that adapt to smaller windows.
+- Local receipt printing and document generation.
+- Windows installer packaging with Electron Builder and NSIS.
 
-```text
-release/Ajith-Super-Market-Setup-1.0.0.exe
-```
+Payment methods are recorded within the application; bank, card-terminal and QR payment processing integrations are outside the implemented feature set.
 
-The unpacked application is under `release/win-unpacked/`. The NSIS installer supports a chosen installation folder and desktop shortcut. This build is unsigned because no signing certificate was supplied. Windows may show an unknown-publisher message. Application data is kept outside the installation folder and is retained on uninstall.
+## Technology Stack
 
-The app icon is included in the repository. After changing `public/icon.svg`, run `npm run icon` to regenerate its PNG and Windows ICO versions before building.
+| Area | Technologies |
+| --- | --- |
+| Desktop application | Electron, Node.js, TypeScript |
+| User interface | React, TypeScript, Vite |
+| Styling and components | Tailwind CSS, Radix UI, Lucide React |
+| State and navigation | Zustand, React Router |
+| Forms and validation | React Hook Form, Zod |
+| Local database | SQLite, better-sqlite3, versioned SQL migrations |
+| Authentication | bcryptjs, role-based permissions, typed Electron IPC |
+| Languages | i18next, react-i18next, bundled Inter and Noto Sans Sinhala fonts |
+| Charts | Recharts |
+| Exports and printing | ExcelJS, CSV generation, Electron printing and PDF APIs |
+| Receipt barcodes | bwip-js, Code 128 |
+| Build and packaging | Vite, esbuild, Electron Builder, NSIS |
+| Quality tools | Vitest, Playwright, ESLint, Prettier, TypeScript checks |
 
-## Everyday use
+## Engineering Highlights
 
-1. Start a shift in **Checkout** or **My shift**.
-2. Scan a barcode as keyboard input followed by Enter, or type a barcode/SKU and choose **Add item**. To add manually, browse **All products**, filter by category, or search by English/Sinhala name, SKU or barcode, then tap a product. The catalogue has 24 products per page with Previous/Next controls. Adding an item already in the bill increases its quantity.
-3. Set quantities and discounts, optionally choose a customer, redeem points or add bags. Pieces/packs require whole quantities; weight and volume quantities support three decimal places. Every valid cart change is committed to SQLite. The saved indicator changes only after that commit succeeds.
-4. Enter cash received, a card/QR/bank reference, customer credit, or an exact split of these recorded payment methods. **Complete sale** saves the sale, costs, payments and stock deductions in one transaction.
-5. Print the receipt or save a PDF. Last receipt and bill-number search support reprints. **My sales** lists a cashier's own sales for the current local date. The owner's sales list covers all staff.
-6. Hold bills with a name and resume them later. A held bill belongs to its user. Hold or clear the current bill before resuming another one or ending a shift.
+- **Offline operation:** business data and core workflows stay on the local computer.
+- **Transaction-safe billing:** each completed sale saves its payments, recorded costs and stock deductions together.
+- **Accurate money calculations:** monetary values use integer LKR cents, with discounts and refunds allocated consistently.
+- **Expiry-aware stock control:** checkout availability is calculated from sellable batches rather than total recorded stock alone.
+- **Protected application boundaries:** a typed preload bridge connects React to validated, permission-checked main-process operations.
+- **Recovery-focused storage:** SQLite WAL, integrity checks and verified backups support data durability and recovery.
 
-For measured products (kg/g or l/ml), adding by barcode, search or catalogue opens a measurement dialog. Enter the weight or volume, choose the unit, and review the automatically calculated price before **Add to bill**. For example, 500 g of rice priced at Rs. 230/kg costs Rs. 115 before discounts. Presets cover common amounts. Use the scale button below an item's quantity to edit its measurement; unit changes preserve the physical amount. Configured scale barcodes already contain a measurement and add it directly. **Selected items** appear above the product catalogue.
-
-Keyboard shortcuts: **F2** barcode entry, **F3** customer, **F4** hold, **F5** held bills, **F8** complete sale, **F10** last receipt, **Esc** dismiss search/clear bill. Dialogs keep their own keyboard focus. The catalogue scrolls within its own panel. Smaller screens stack checkout and payment vertically.
-
-Use the sidebar button at the top left to hide or show desktop navigation. This preference is remembered on the device. On smaller screens, the menu button opens navigation as an overlay.
-
-Language is remembered per user. The login screen remembers the last chosen language on the device. Theme is a device preference. Auto-lock defaults to 15 minutes; unsaved invalid form input is not committed, and saved/open bills remain recoverable after locking or restarting.
-
-## Products, receiving and supplier accounts
-
-Products support multiple unique barcodes, a unique SKU, bilingual names, a unit, selling/latest cost/MRP, reorder threshold, supplier, active state, a local image and a catalogue-priority flag. Deactivate products to preserve their sale history. A price above MRP shows a warning.
-
-In **Products & stock → Add product** (or Edit), choose a **Product image** before saving. PNG, JPG and WebP files up to 1.5 MB are supported. Preview, replace or remove the image in the form. Images are stored locally with the product, appear in the checkout catalogue, search results and current bill, and are included in database backups.
-
-Receive goods in **Purchases** using a supplier, unique supplier invoice number, date, quantities, costs and optional expiry dates. Each line creates a batch and stock movement. Latest product cost is updated without changing earlier sales. Supplier payments reduce outstanding purchases; pending and returned cheques do not. Clearing a cheque records its supplier payment once; cleared cheques cannot be changed or deleted.
-
-Stock is reconciled between batch balances and the immutable stock movement history. Corrections require a reason. Select a batch when reducing stock; leave the batch blank to add a new positive correction. Expired stock cannot be sold. An expiry date is sellable through that local calendar date. Selling selects the earliest expiry first, then the earliest received date; batches without expiry follow dated batches. This is FEFO with FIFO as its tie-breaker.
-
-Negative stock is off by default. If enabled, only the owner can sell beyond available stock; the shortage is recorded as a negative batch with the latest recorded cost. Cashiers still cannot oversell. Correct negative balances by batch as stock becomes available.
-
-### Product import/export
-
-Download **Import template** from Products. CSV and Excel use these stable machine-readable columns:
-
-```text
-sku,barcodes,name_en,name_si,category_en,category_si,unit,selling_price,mrp,cost_price,reorder_level,supplier,quick_access,active
-```
-
-Use rupees with up to two decimal places for imported prices; they are converted to integer cents internally. Separate additional barcodes with commas inside the cell. `unit` is `pcs`, `kg`, `g`, `l`, `ml` or `pack`. Flags are `1` or `0`. MRP and supplier may be blank; a named supplier must already exist. New bilingual categories are created as needed. Existing SKUs are updated, including their complete barcode set. Stock is entered separately through receiving/adjustment; importing a catalogue does not invent opening stock. Existing images are preserved on import. A bad row rolls back the entire file and reports its row number. Imports are limited to 20,000 product rows per file. CSV exports include a UTF-8 BOM and guard spreadsheet formula-leading text.
-
-### Scale barcode assumptions
-
-Default configuration is prefix `22`, five item-code digits, five value digits and three decimal places. Match the embedded item code to the product SKU or barcode. In **weight** mode, the encoded value represents kilograms; a product sold in grams receives the equivalent gram quantity. In **price** mode, the encoded value represents rupees and is converted to quantity using the current selling price. Any trailing scanner check digit is ignored by the decoder; use your scanner/scale to validate barcode checksums. Configure the format to match your scale before using it. No live weighing-scale driver is included; manual weight entry is always available.
-
-## Returns, customer credit and points
-
-Find the original bill, select remaining quantities and give a reason. Mark damaged items to avoid returning them to sellable stock. Cashier returns and voids require the owner's PIN, checked in the main process with rate limiting. Voids require every remaining item. Returned quantities cannot exceed the original sale allocations. A full return includes the remaining bag charge and bill-rounding difference.
-
-Refund amounts retain the original discounts and costs; repeated fractional returns cannot refund an extra cent. Restockable returns reverse their original COGS. A damaged return leaves its cost recognised, so it reduces profit appropriately without creating usable stock. Refunds first reduce any applicable outstanding customer credit; the remainder uses the selected cash/card/bank method. Choosing credit as the refund method requires the entire refund to fit the unpaid credit portion. The application records these methods and references; it does not contact a bank, card terminal or QR payment service.
-
-Credit requires a selected customer and sufficient credit limit. Customer collections reduce their account balance and have printable/PDF receipts. Points default to one point per Rs. 100, rounded down per bill; one point defaults to Rs. 1. Points redemption reduces sale revenue, requires a customer and cannot exceed their points or the bill value. Returns reverse earned/redeemed points in proportion to refunded value. A fully points-funded zero-value bill restores redeemed points on its full return. A return can create a negative points balance if previously earned points have already been spent; this keeps the loyalty ledger honest. Customer history includes sales, collections and points entries.
-
-## Profit and reports
-
-All monetary amounts are integer LKR cents; quantities have up to three decimals. `Rs. 1,250.00` is the display format. Transactions use parameterised SQLite queries, WAL, foreign keys, a busy timeout and `synchronous=FULL`.
-
-```text
-Net revenue = sale totals − returns recorded in the period
-COGS = recorded sale costs − restockable returned costs
-Gross profit = net revenue − COGS
-Net profit = gross profit − simple dated expenses
-```
-
-Each sale allocation stores `batch_id`, `unit_price`, `unit_cost`, allocated discounts, total revenue and rounded cost. Bill and loyalty discounts are allocated without losing cents. Later purchases or price edits do not rewrite history. Supplier payments and customer collections settle balances rather than changing sales profit.
-
-Date filters use the computer's local calendar date; set Windows to Sri Lanka time for store operation. Saved timestamps are UTC. Displayed dates are DD/MM/YYYY and times use 12-hour format. The revenue/profit chart covers 12 calendar months ending in the selected end month; other charts follow the selected date range.
-
-The sales report is an event ledger: original sales are positive and refunds are separate negative entries dated when the return occurred. This keeps its period totals consistent with the profit dashboard. Product/category profit uses allocated merchandise revenue; bag charges and bill rounding remain at bill level and therefore explain any difference from the overall gross-profit total. Current inventory, dead stock, credit, supplier balances, cheques and reorder reports show the current position regardless of the sales date filter. Other reports follow their event date.
-
-Every report supports Excel, CSV and locally generated PDF. Daily-summary printing includes revenue, COGS, expenses, gross/net profit and bill count with the sales ledger. Excel stores Sinhala as Unicode, requests Noto Sans Sinhala, and uses Windows font fallback when that font is not installed in Excel. UI and PDF embed local fonts directly. No expense category field exists.
-
-## Printing and hardware
-
-Use a Windows-installed 80 mm or 58 mm thermal printer and select the matching width in Settings. Receipts are rendered with bundled fonts, captured as a bitmap and sent through the Windows print dialog so Sinhala does not depend on the printer's built-in character set. PDF generation uses Electron `printToPDF` with the same local fonts. A failed print offers PDF fallback. Cancelled dialogs leave the completed sale intact.
-
-Choose the paper width, margins and scaling correctly in the printer driver. A keyboard-wedge USB barcode scanner needs no driver integration in the app. The app has no drawer hardware/denomination controls. Physical scanner, scale and printer models were not available during development; run a receipt/scan/weight acceptance check on the shop's actual equipment before live billing. Keep Windows and power protection appropriate for the counter. Database commits protect completed writes; keystrokes still in transit during an abrupt power failure cannot be guaranteed.
-
-## Database, backup and recovery
-
-| Mode                      | Default data directory             |
-| ------------------------- | ---------------------------------- |
-| Development / seed        | `%APPDATA%\Ajith Super Market Dev` |
-| Installed application     | `%APPDATA%\Ajith Super Market`     |
-| Explicit isolated testing | `POS_DATA_DIR`                     |
-
-The directory contains `ajith.db`, its active WAL/SHM files and `errors.log`. Keep it on a local disk. Do not share one live database over a network drive or open it in multiple independent app processes. The single-instance lock prevents ordinary duplicate launches.
-
-1. As owner, choose a backup folder in Settings, ideally on a separate USB drive. Choosing the folder also makes a backup immediately.
-2. **Back up now** uses SQLite's online backup API, validates integrity, then publishes a complete `.db` file. Automatic backup checks every minute and makes one backup per local day while the app is open. It runs without requiring the owner to stay signed in. The default retention is 14 backups; only app-generated backup filenames are removed.
-3. A warning appears if there is no successful backup within three days. An absent/disconnected drive causes a logged failure and leaves the warning active; reconnect it and back up manually. There is no background service when the app is closed.
-4. To restore, sign in as owner, choose a compatible `.db`, and confirm the native warning. The app checks integrity, schema compatibility and foreign keys, saves `safety-before-restore-<timestamp>.db` beside the live database, replaces the live file and signs you out. Sign in with the credentials present in the backup. Keep the safety copy until the restored data has been checked.
-5. Startup runs an integrity check. If the live file cannot be opened safely, a bilingual recovery dialog offers a verified backup. Before replacement, the owner must authenticate against the selected read-only backup. Cashier credentials cannot approve recovery. Damaged files are preserved with `.damaged-<timestamp>` suffixes. Protect the Windows account and backup media as well.
-
-Use the app's backup button instead of copying a live database file without its WAL. Backups contain the full local business dataset and password hashes; they are not encrypted. Protect the Windows account and storage media. Restore replaces the entire store snapshot, including accounts, prices and settings.
-
-## Architecture
-
-```text
-electron/       Window, sandboxed preload, validated IPC, printing/export and backup
-db/             Versioned SQL migrations, SQLite access, defaults and sample seed
-services/       Authentication, inventory, purchasing, POS, returns and reporting
-shared/         Domain types and Zod IPC request/response contracts
-src/
-  components/   shadcn-style Radix dialog/button primitives, forms and tables
-  features/     Checkout, inventory, owner records, receiving, returns and reports
-  i18n/         Complete English/Sinhala message dictionaries
-  lib/          Typed IPC client and formatting
-  store.ts      Session, product cache, theme and serialised durable cart updates
-tests/          Calculation/translation unit tests and native SQLite integration checks
-scripts/        Development, main build, seed, native tests and Electron UI tests
-public/         Local application icon
-build/          Windows installer icon
-```
-
-The renderer has `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, a content security policy and no Node/SQL access. The preload exposes only an allowlisted typed invocation bridge. The main process validates each payload with Zod, checks its sender/frame and enforces the authenticated user's role for every operation. Sensitive product costs and supplier fields are omitted from cashier responses, including receipt costs. Navigation and permissions are separate layers. HTTP/network requests are denied in the production session, new windows/navigation are blocked, and browser permission requests are denied. Development allows only its local Vite server/websocket. Passwords and PINs use bcrypt hashes.
-
-## Checks
-
-```powershell
-npm run typecheck
-npm run lint
-npm test
-npm run test:integration
-npm run build
-npm run test:e2e
-npm run test:catalogue
-npm run test:recovery
-npm run test:dev
-npm run dist
-npm run test:packaged
-```
-
-`npm test` covers money/profit, FEFO/FIFO, split payments, bill rounding, returns, discounts, permissions, scale decoding and translation coverage. The integration script runs under Electron's Node runtime to use the correct SQLite ABI. It creates a temporary database, tests migrations, seed/auth, receiving, cheque clearing, stock rollback, idempotent sales, immutable historic costs, refunds, credit/points, all report queries, idle locking, automatic backup retention and persisted reopening. It also benchmarks search with 20,000 additional products and a 50-line sale.
-
-The Electron UI test uses an isolated temporary store, exercises first login, every owner route, expense CRUD, hold/resume, cart persistence after renderer reload, split checkout, bilingual PDF/Excel export, backup/restore, themes, responsive layout, cashier restrictions and zero HTTP requests. Artifacts are in `test-results/`; no test uses or resets the real store. The packaged application can additionally be smoke-tested with `node scripts/packaged-smoke.mjs` after `npm run dist`.
-
-`npm run test:catalogue` checks catalogue pagination, category filters, bilingual search, barcode/SKU and manual addition, remembered sidebar visibility, product image creation/removal and invalid image handling, plus desktop layout and dark theme. Run it after `npm run build`; it also uses an isolated temporary store.
-
-Observed on the development computer: native product search p95 around 7 ms across a 20,000-product catalogue; persisting and completing a 50-line bill around 10 ms. These measurements are local test results, not guarantees for every counter or USB drive.
-
-Inter and Noto Sans Sinhala are bundled with their font licences in `dist-electron/fonts`. No deployment, bank integration, hardware certification or code-signing is implied by this repository.
-
-## Stocktaking, supplier returns, PIN switching and backup checks
-
-- **Stocktaking:** start a count, enter physical quantities, save a draft, then review and apply. Blank counts leave products unchanged. If stock changes while a count is in progress, start a new count before applying it. Completed counts retain their recorded quantities and differences.
-- **Checkout quantities:** use +/− and the 1/3/5 presets for pieces and packs. Measured items retain their weight/volume editor. Sold-out and expired-only stock cannot be added; the remaining available quantity accounts for items already in the bill.
-- **Receipt barcodes:** previews, printouts and PDFs include a Code 128 barcode containing the bill number. Scan into **My sales** and press Enter for reprinting, or scan into **Returns** to retrieve the bill.
-- **Supplier returns:** select a supplier, purchased batches, return quantities and reason. The original purchase costs determine the credit. Posting reduces the corresponding batches and supplier balance, with a retained return history.
-- **Cashier PINs:** the owner sets or removes a separate 4–6 digit cashier PIN in **Settings → Account names**. The cashier must first complete their password change. Use **Switch cashier** in the header or **Cashier PIN** on the sign-in screen. Each account keeps its own unfinished bill. PIN attempts are rate limited; the owner approval PIN remains separate.
-- **Backup verification:** every new backup is checked for SQLite integrity, foreign keys, schema and readable account/bill/product records before being recorded as successful. Settings shows the latest verification outcome and provides **Verify latest backup**. Retained verified backups can be opened through the existing restore flow.
-
-Additional checks:
-
-```powershell
-npm run test:operations
-npm run test:operations:ui
-```
-
-Both use isolated temporary data. The UI check decodes the generated receipt barcode and exercises stock counts, supplier credits, quantity limits, PIN switching, saved bills and backup verification.
+The repository includes calculation and translation tests, native database integration checks, and Electron UI checks covering checkout, inventory operations, permissions, exports and recovery.
