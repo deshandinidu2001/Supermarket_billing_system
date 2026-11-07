@@ -4032,23 +4032,9 @@ textarea::placeholder {
 }
 .signin-access {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: 1fr auto;
   min-width: 0;
   padding: 34px clamp(28px, 5vw, 88px) 28px;
-}
-.signin-status {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 11px;
-}
-.signin-status > span {
-  width: 7px;
-  height: 7px;
-  background: var(--green);
-  border-radius: 50%;
 }
 .signin-form-shell {
   width: 100%;
@@ -4132,6 +4118,14 @@ textarea::placeholder {
   color: var(--ink);
   font-weight: 600;
   margin-left: 3px;
+}
+.signin-contact {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 16px;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
 }
 @media (max-width: 800px) {
   .signin-page {

@@ -758,9 +758,7 @@ export default function Checkout() {
             {t(`shortcut.${label}`)}
           </span>
         ))}
-        <small>
-          {settings.counter_id} · {t('offline')}
-        </small>
+        <small>Developed by Deshan Dinidu</small>
       </div>
       {measured && (
         <MeasuredItemDialog

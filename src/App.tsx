@@ -178,10 +178,6 @@ function Login() {
         </div>
       </aside>
       <main className="signin-access">
-        <div className="signin-status">
-          <span />
-          {t('offline')}
-        </div>
         <section className="signin-form-shell" aria-labelledby="signin-title">
           <h2 id="signin-title">{t('welcome')}</h2>
           <p>{t('loginHint')}</p>
@@ -242,7 +238,13 @@ function Login() {
           </p>
         </section>
         <footer className="signin-credit">
-          Developed by <strong>Deshan Dinidu</strong>
+          <div>
+            Developed by <strong>Deshan Dinidu</strong>
+          </div>
+          <div className="signin-contact">
+            <span>deshandinidu2001@gmail.com</span>
+            <span>0703439842</span>
+          </div>
         </footer>
       </main>
     </div>
