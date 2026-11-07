@@ -51,20 +51,34 @@ try {
     assert.equal(result.ok, true, JSON.stringify(result));
     return result.data;
   };
+  const cloudStatus = await invoke('cloudStatus');
+  assert.equal(cloudStatus.connected, false);
+  assert.equal(cloudStatus.pending, 0);
+  assert.equal(cloudStatus.error, null);
+  for (const action of ['cloudConnect', 'cloudDisconnect', 'cloudRetry', 'cloudRebuild']) {
+    const rejected = await page.evaluate((action) => window.pos.invoke(action, null), action);
+    assert.equal(
+      rejected.error,
+      'validation',
+      `${action} must reach main-process validation for the owner`,
+    );
+  }
   for (const [route, heading] of [
     ['products', 'Products & stock'],
     ['categories', 'Categories'],
     ['suppliers', 'Suppliers'],
     ['purchases', 'Purchases'],
     ['cheques', 'Cheques'],
-    ['customers', 'Customers'],
     ['expenses', 'Expenses'],
     ['reports', 'Reports'],
     ['users', 'Team access'],
     ['audit', 'Activity log'],
     ['settings', 'Settings & backup'],
   ]) {
-    await page.locator(`.nav-link[href="#/${route}"]`).click();
+    if (route === 'users') {
+      await page.locator('.nav-link[href="#/settings"]').click();
+      await page.getByRole('button', { name: 'Manage cashiers', exact: true }).click();
+    } else await page.locator(`.nav-link[href="#/${route}"]`).click();
     await page.getByRole('heading', { name: heading, exact: true }).first().waitFor();
     await page.locator('.loading').waitFor({ state: 'hidden' });
     assert.equal(
@@ -187,8 +201,7 @@ try {
   await page.getByText('E2E store supplies', { exact: true }).waitFor({ state: 'hidden' });
   console.log('Expense CRUD and destructive confirmation passed');
   await page.locator('.nav-link[href="#/checkout"]').click();
-  await page.getByRole('button', { name: 'Start shift', exact: true }).click();
-  await page.getByRole('button', { name: 'Start shift', exact: true }).waitFor({ state: 'hidden' });
+  await page.getByRole('heading', { name: 'Checkout', exact: true }).waitFor();
   await page.getByRole('button', { name: /Nadu rice/ }).click();
   await page.getByRole('dialog').getByRole('button', { name: '1 kg', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Add to bill', exact: true }).click();
@@ -369,6 +382,19 @@ try {
     });
     catalogue.push({ id });
   }
+  // Seed sellable quantities for the renderer performance fixture, including new
+  // products and products whose original batches have expired.
+  for (const product of catalogue.slice(0, 50)) {
+    if ((product.available_stock ?? 0) < 5)
+      await invoke('adjustStock', {
+        product_id: product.id,
+        batch_id: null,
+        qty: 5,
+        reason: 'correction',
+        cost_price: product.cost_price ?? 7500,
+        expiry_date: null,
+      });
+  }
   await invoke('saveCart', {
     lines: catalogue.slice(0, 50).map((p) => ({ product_id: p.id, qty: 1, discount_percent: 0 })),
     customer_id: null,
@@ -421,9 +447,14 @@ try {
     .fill('cashier-e2e-2026');
   await page.getByRole('button', { name: 'Save password', exact: true }).click();
   await page.locator('.app-shell').waitFor();
-  assert.equal(await page.locator('.nav-link').count(), 5);
+  assert.equal(await page.locator('.nav-link').count(), 4);
   const cashierBoot = await invoke('bootstrap');
   for (const [action, input] of [
+    ['cloudStatus', {}],
+    ['cloudConnect', { url: 'http://127.0.0.1:4311', code: 'x'.repeat(24) }],
+    ['cloudDisconnect', {}],
+    ['cloudRetry', {}],
+    ['cloudRebuild', { confirm: 'REBUILD' }],
     ['dashboard', { from: '2026-01-01', to: '2026-12-31' }],
     ['settings', cashierBoot.settings],
     [

@@ -89,7 +89,7 @@ export class Backups {
       this.busy = false;
     }
   }
-  async restore() {
+  async restore(beforeReplace?: () => Promise<void>) {
     const user = this.auth.owner();
     const pick = await dialog.showOpenDialog({
       title: label('restore', user.language),
@@ -111,6 +111,7 @@ export class Backups {
     if (confirm.response !== 1) return false;
     const safety = join(dirname(this.store.path), `safety-before-restore-${Date.now()}.db`);
     await this.store.db.backup(safety);
+    await beforeReplace?.();
     this.store.close();
     const incoming = `${this.store.path}.incoming`;
     copyFileSync(source, incoming);

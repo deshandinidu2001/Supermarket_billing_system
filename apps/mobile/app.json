@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Ajith Owner",
+    "slug": "ajith-owner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "lk.ajith.owner"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#eef6f1"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "lk.ajith.owner"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-secure-store"]
+  }
+}

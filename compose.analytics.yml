@@ -1,0 +1,18 @@
+services:
+  analytics-db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: ajith_analytics
+      POSTGRES_USER: ajith
+      POSTGRES_PASSWORD: ${ANALYTICS_DB_PASSWORD:?Set ANALYTICS_DB_PASSWORD}
+    ports:
+      - '127.0.0.1:55432:5432'
+    volumes:
+      - analytics-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ajith -d ajith_analytics']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  analytics-postgres:

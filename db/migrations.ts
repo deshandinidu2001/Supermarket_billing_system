@@ -1,3 +1,4 @@
+import { analyticsMigration } from './analytics-migration';
 const uuidSql =
   "lower(hex(randomblob(4)))||'-'||lower(hex(randomblob(2)))||'-4'||substr(lower(hex(randomblob(2))),2)||'-8'||substr(lower(hex(randomblob(2))),2)||'-'||lower(hex(randomblob(6)))";
 export const migrations = [
@@ -66,4 +67,5 @@ CREATE INDEX idx_supplier_return_batch ON supplier_return_items(batch_id);
 CREATE TABLE backup_verifications (id TEXT PRIMARY KEY, path TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('passed','failed')), message TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 `,
   },
+  analyticsMigration,
 ];

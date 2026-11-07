@@ -8,4 +8,11 @@ test-results/
 *.db-shm
 *.log
 .env*
+!.env.example
+!**/.env.example
+**/node_modules/
+**/dist/
+**/.expo/
+**/build-check/
+**/.env.local
 .DS_Store

@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { Action, Bridge, Input } from '../shared/contracts';
 const actions = new Set([
+  'cloudStatus',
+  'cloudConnect',
+  'cloudDisconnect',
+  'cloudRetry',
+  'cloudRebuild',
   'cashierAccounts',
   'pinLogin',
   'setCashierPin',

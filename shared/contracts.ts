@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { CloudStatus } from './analytics';
 import type {
   Bootstrap,
   Cart,
@@ -144,6 +145,14 @@ export const settingsSchema = z.object({
 });
 const range = { from: date, to: date };
 export const schemas = {
+  cloudStatus: z.object({}),
+  cloudConnect: z.object({
+    url: z.string().url().max(250),
+    code: z.string().trim().min(20).max(200),
+  }),
+  cloudDisconnect: z.object({}),
+  cloudRetry: z.object({}),
+  cloudRebuild: z.object({ confirm: z.literal('REBUILD') }),
   cashierAccounts: z.object({}),
   pinLogin: z.object({ id, pin }),
   setCashierPin: z.object({ id, pin: pin.nullable() }),
@@ -318,6 +327,11 @@ export const schemas = {
 export type Action = keyof typeof schemas;
 export type Input<K extends Action> = z.input<(typeof schemas)[K]>;
 export interface Outputs {
+  cloudStatus: CloudStatus;
+  cloudConnect: CloudStatus;
+  cloudDisconnect: CloudStatus;
+  cloudRetry: CloudStatus;
+  cloudRebuild: CloudStatus;
   cashierAccounts: Row[];
   pinLogin: User;
   setCashierPin: boolean;

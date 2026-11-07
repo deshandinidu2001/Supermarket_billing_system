@@ -13,6 +13,7 @@ import { POS } from '../services/pos';
 import { Reports } from '../services/reports';
 import { AppError } from '../services/errors';
 import { Backups, verifyBackup } from './backup';
+import { CloudSync } from './cloud-sync';
 import { authenticateBackupOwner } from './recovery';
 import {
   customerPaymentHtml,
@@ -32,6 +33,7 @@ let store: Store,
   backups: Backups;
 let mainWindow: BrowserWindow | null = null;
 let recovering = false;
+let cloud: CloudSync;
 let timer: ReturnType<typeof setInterval> | undefined;
 const devUrl = process.env.VITE_DEV_SERVER_URL;
 app.setName('Ajith Super Market');
@@ -64,6 +66,14 @@ function connect() {
   pos = new POS(store, auth, inventory);
   reports = new Reports(store, auth);
   backups = new Backups(store, auth);
+  cloud = new CloudSync(store);
+}
+async function cloudAction<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    throw new AppError('cloudFailure', error instanceof Error ? error.message : undefined);
+  }
 }
 async function dispatch(action: Action, raw: unknown): Promise<unknown> {
   if (
@@ -79,6 +89,27 @@ async function dispatch(action: Action, raw: unknown): Promise<unknown> {
   )
     auth.authorize(action);
   switch (action) {
+    case 'cloudStatus':
+      schemas.cloudStatus.parse(raw);
+      auth.owner();
+      return cloud.status();
+    case 'cloudConnect': {
+      auth.owner();
+      const d = schemas.cloudConnect.parse(raw);
+      return cloudAction(() => cloud.enroll(d.url, d.code));
+    }
+    case 'cloudDisconnect':
+      schemas.cloudDisconnect.parse(raw);
+      auth.owner();
+      return cloudAction(() => cloud.disconnect());
+    case 'cloudRetry':
+      schemas.cloudRetry.parse(raw);
+      auth.owner();
+      return cloud.tick(true);
+    case 'cloudRebuild':
+      schemas.cloudRebuild.parse(raw);
+      auth.owner();
+      return cloudAction(() => cloud.rebuild());
     case 'cashierAccounts':
       schemas.cashierAccounts.parse(raw);
       return auth.cashierAccounts();
@@ -250,7 +281,7 @@ async function dispatch(action: Action, raw: unknown): Promise<unknown> {
       return backups.backup(schemas.backup.parse(raw).choose_folder);
     case 'restore': {
       schemas.restore.parse(raw);
-      const restored = await backups.restore();
+      const restored = await backups.restore(() => cloud.stop(true));
       if (restored) {
         connect();
         store.audit(null, 'restore');
@@ -459,13 +490,20 @@ else {
   app.on('window-all-closed', () => {
     if (!recovering) app.quit();
   });
-  app.on('before-quit', () => {
+  let quitting = false;
+  app.on('before-quit', (event) => {
+    if (quitting) return;
+    event.preventDefault();
+    quitting = true;
     if (timer) clearInterval(timer);
-    try {
-      if (store?.db.open) store.close();
-    } catch (error) {
-      log(error);
-    }
+    void (cloud?.stop() ?? Promise.resolve()).catch(log).finally(() => {
+      try {
+        if (store?.db.open) store.close();
+      } catch (error) {
+        log(error);
+      }
+      app.quit();
+    });
   });
   process.on('uncaughtException', log);
   process.on('unhandledRejection', log);
