@@ -12,7 +12,6 @@ import { Button } from '../components/ui/button';
 import { Modal } from '../components/ui/dialog';
 import { PageTitle, useLoad } from '../components/common';
 import { field, RecordForm, type Field } from '../components/forms';
-import CloudSettings from './CloudSettings';
 export default function Settings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -176,7 +175,6 @@ export default function Settings() {
               </div>
             ))}
           </section>
-          <CloudSettings />
           {sections.map((section) => (
             <section className="panel settings-section" key={section.title}>
               <h2>{t(section.title)}</h2>

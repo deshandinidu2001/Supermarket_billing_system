@@ -11,12 +11,12 @@ if (
   !new URL(process.env.DATABASE_URL).pathname.startsWith('/ajith_test_')
 )
   throw new Error('Set DATABASE_URL to a dedicated ajith_test_* PostgreSQL database.');
-const web = spawnSync(process.execPath, ['node_modules/vite/bin/vite.js', 'build'], {
-  cwd: 'apps/web',
+const desktop = spawnSync(process.execPath, ['node_modules/vite/bin/vite.js', 'build'], {
   stdio: 'inherit',
   windowsHide: true,
 });
-if (web.status !== 0) process.exit(web.status ?? 1);
+if (desktop.status !== 0) process.exit(desktop.status ?? 1);
+await import('./build-main.mjs');
 const fixture = join(mkdtempSync(join(tmpdir(), 'ajith-analytics-fixture-')), 'fixture.json');
 await build({
   entryPoints: ['tests/cloud-integration.ts'],

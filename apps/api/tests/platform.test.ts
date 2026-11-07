@@ -1,17 +1,19 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { mkdirSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { app } from '../src/app';
 import { pool, transaction } from '../src/db';
 import { validateSql, answerKnown, questionRange } from '../src/questions';
 import { forecastSeries } from '../../../packages/analytics/engine';
 import type { SyncEvent } from '../../../shared/analytics';
+import type {} from '../../../shared/contracts';
 
 if (
   !process.env.DATABASE_URL ||
@@ -73,7 +75,6 @@ async function createOwner() {
     password,
     token: login.data.token,
     device: device.data,
-    cookie: login.cookie!.split(';')[0],
   };
 }
 test('full synchronization, staged snapshots, financial parity, tenant isolation and revocation', async () => {
@@ -81,9 +82,10 @@ test('full synchronization, staged snapshots, financial parity, tenant isolation
     b = await createOwner();
   assert.equal((await api(`/stores/${a.store}/analytics`, undefined, b.token)).status, 403);
   assert.equal(
-    (await api(`/stores/${a.store}/analytics`, undefined, undefined, a.cookie)).status,
-    200,
-    'web session cookie authenticates',
+    (await api(`/stores/${a.store}/analytics`, undefined, undefined, `ajith_session=${a.token}`))
+      .status,
+    401,
+    'browser cookie authentication is not supported',
   );
   assert.equal(
     (await api('/stores', undefined, a.device.token)).status,
@@ -249,78 +251,175 @@ test('real Electron sync worker handles encrypted credentials, offline writes an
   assert.doesNotMatch(output, /UnhandledPromiseRejection|database connection is not open/);
   console.log(output.trim());
 });
-test('owner web works at desktop and phone widths with real synchronized fixtures', async () => {
-  process.env.WEB_ORIGIN = base.replace(/\/api$/, '');
+test('POS analytics tabs, direct pairing, offline gate, local checkout and session isolation', async () => {
   const require = createRequire(new URL('../../../package.json', import.meta.url));
-  const { chromium } = require('playwright') as typeof import('playwright');
+  const { _electron: electron } = require('playwright') as typeof import('playwright');
   const owner = await createOwner(),
-    fixture = JSON.parse(readFileSync(process.env.ANALYTICS_FIXTURE!, 'utf8')) as {
-      events: SyncEvent[];
-      from: string;
-      to: string;
-    };
-  const events = fixture.events.map((e) => ({
-    ...e,
-    storeId: owner.store,
-    deviceId: owner.device.deviceId,
-  }));
-  for (let i = 0; i < events.length; i += 200)
-    assert.equal(
-      (await api('/sync/events', { events: events.slice(i, i + 200) }, owner.device.token)).status,
-      200,
-    );
-  const browser = await chromium.launch({
-    headless: true,
-    ...(existsSync('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe')
-      ? { channel: 'msedge' }
-      : {}),
+    directory = mkdtempSync(join(tmpdir(), 'ajith-pos-analytics-'));
+  const env: NodeJS.ProcessEnv = { ...process.env, POS_DATA_DIR: directory, POS_DEMO: '1' };
+  delete env.ELECTRON_RUN_AS_NODE;
+  const desktop = await electron.launch({
+    args: [resolve('../..')],
+    env: Object.fromEntries(
+      Object.entries(env).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+      ),
+    ),
+    timeout: 60000,
   });
+  const rendererRequests: string[] = [],
+    errors: string[] = [];
   try {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } }),
-      page = await context.newPage(),
-      errors: string[] = [];
-    page.setDefaultTimeout(15000);
+    const page = await desktop.firstWindow();
+    page.setDefaultTimeout(20000);
+    page.on('request', (r) => {
+      if (/^https?:/.test(r.url())) rendererRequests.push(r.url());
+    });
     page.on('pageerror', (e) => errors.push(e.message));
-    await page.goto(base.replace(/\/api$/, ''));
+    await page.getByLabel('Username', { exact: true }).fill('owner');
+    await page.getByLabel('Password', { exact: true }).fill('ajith123');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByLabel('Current password', { exact: true }).fill('ajith123');
+    await page
+      .getByLabel('New password (at least 8 characters)', { exact: true })
+      .fill('desktop-analytics-2026');
+    await page.getByLabel('Owner approval PIN (4–6 digits)', { exact: true }).fill('4321');
+    await page.getByRole('button', { name: 'Save password', exact: true }).click();
+    await page.locator('.nav-link[href="#/analytics"]').click();
+    await page.getByRole('tab', { name: 'Connection', exact: true }).click();
+    await page.getByLabel('Server address', { exact: true }).fill(base.replace(/\/api$/, ''));
     await page.getByLabel('Email', { exact: true }).fill(owner.email);
     await page.getByLabel('Password', { exact: true }).fill(owner.password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
-    await page.getByRole('heading', { name: 'Products driving sales' }).waitFor();
+    await page
+      .getByRole('button', { name: 'Connect this POS', exact: true })
+      .waitFor({ state: 'visible' });
+    await page.getByRole('button', { name: 'Connect this POS', exact: true }).click();
+    await page.waitForFunction(
+      async () => {
+        const r = await window.pos.invoke('cloudStatus', {});
+        return r.ok && r.data.pending === 0 && !!r.data.lastSync;
+      },
+      undefined,
+      { timeout: 60000 },
+    );
+    // Check the visible server projection as well as the local upload queue.
+    let projection;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      projection = await api(
+        `/stores/${owner.store}/analytics?from=2026-01-01&to=2026-12-31`,
+        undefined,
+        owner.token,
+      );
+      if (projection.data.report.summary.bills > 0) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    assert(
+      projection?.data.report.summary.bills > 0,
+      'paired POS data must be visible on the server',
+    );
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await page.getByRole('tab', { name: 'Overview', exact: true }).click();
+    await page.locator('.oa-metrics').waitFor();
+    await page.locator('.oa-table tbody tr').first().waitFor();
+    await page.locator('.recharts-area-area').waitFor({ state: 'attached' });
     mkdirSync(resolve('../../test-results'), { recursive: true });
-    await page.locator('.recharts-area-area').waitFor();
-    await page.mouse.move(0, 0);
     await page.screenshot({
-      path: resolve('../../test-results/owner-web-desktop.png'),
+      path: resolve('../../test-results/pos-analytics-overview.png'),
       fullPage: true,
     });
-    await page.getByRole('button', { name: 'Inventory', exact: true }).first().click();
-    await page.getByRole('heading', { name: 'Slow-moving products' }).waitFor();
-    await page.getByRole('button', { name: 'AI analyst', exact: true }).click();
+    const status = await page.evaluate(() => window.pos.invoke('analyticsStatus', {}));
+    assert(status.ok);
+    assert(!JSON.stringify(status.data).includes(owner.password));
+    assert(!JSON.stringify(status.data).includes('"token"'));
+    await page.getByRole('tab', { name: 'AI analyst', exact: true }).click();
     await page
       .getByRole('button', { name: 'What are the top 5 items this week?', exact: true })
       .click();
     await page.getByRole('heading', { name: 'Top 5 products by quantity' }).waitFor();
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
-    await page.getByRole('button', { name: 'Create enrollment code' }).click();
-    await page.locator('.enrollment-code').waitFor();
-    await page.getByRole('button', { name: 'Overview', exact: true }).click();
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.locator('.recharts-area-area').waitFor();
+    await page.getByRole('tab', { name: 'Sales', exact: true }).click();
+    await page.locator('.oa-row-link').first().click();
+    await page.getByRole('dialog').waitFor();
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').waitFor({ state: 'hidden' });
+    await page.getByRole('tab', { name: 'Inventory', exact: true }).click();
+    await page.locator('.oa-table tbody tr').first().waitFor();
+    await page.getByRole('tab', { name: 'Forecasts', exact: true }).click();
+    await page.locator('.oa-table tbody tr').first().waitFor();
+    await page.getByRole('tab', { name: 'Alerts', exact: true }).click();
+    await page.getByRole('heading', { name: 'Expiring within 7 days' }).waitFor();
+    await desktop.evaluate(() => {
+      const globals = globalThis as typeof globalThis & { analyticsTestFetch?: typeof fetch };
+      globals.analyticsTestFetch = globalThis.fetch;
+      globalThis.fetch = async () => {
+        throw new Error('Simulated network loss');
+      };
+    });
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await page.locator('.oa-network-gate').waitFor();
+    assert.equal(await page.locator('.oa-metrics').count(), 0);
+    await page.locator('.nav-link[href="#/checkout"]').click();
+    await page.getByRole('heading', { name: 'Checkout', exact: true }).waitFor();
+    await page.getByRole('button', { name: /Fresh milk/ }).click();
+    await page.locator('.cart-table tbody tr').first().waitFor();
+    await desktop.evaluate(() => {
+      const globals = globalThis as typeof globalThis & { analyticsTestFetch?: typeof fetch };
+      globalThis.fetch = globals.analyticsTestFetch!;
+      delete globals.analyticsTestFetch;
+    });
+    await page.locator('.nav-link[href="#/analytics"]').click();
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await page.getByRole('tab', { name: 'Overview', exact: true }).click();
+    await page.locator('.oa-metrics').waitFor();
+    await desktop.evaluate(({ BrowserWindow }) => {
+      const win = BrowserWindow.getAllWindows()[0];
+      win.setMinimumSize(0, 0);
+      win.setSize(390, 844);
+    });
     await page.screenshot({
-      path: resolve('../../test-results/owner-web-phone.png'),
+      path: resolve('../../test-results/pos-analytics-small.png'),
       fullPage: true,
     });
-    assert.equal(
-      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
-      false,
-      'phone view has no page-level horizontal overflow',
+    assert.equal(await page.evaluate(() => document.body.scrollWidth > innerWidth), false);
+    await desktop.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].setSize(1366, 900),
     );
-    await page.getByRole('button', { name: 'Alerts', exact: true }).click();
-    await page.getByRole('heading', { name: 'Expiring within 7 days' }).waitFor();
+    await page.getByRole('button', { name: 'Lock screen', exact: true }).click();
+    await page.getByLabel('Username', { exact: true }).fill('owner');
+    await page.getByLabel('Password', { exact: true }).fill('desktop-analytics-2026');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.locator('.nav-link[href="#/analytics"]').click();
+    await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
+    assert.equal((await page.evaluate(() => window.pos.invoke('analyticsStatus', {}))).ok, true);
+    assert.deepEqual(rendererRequests, []);
     assert.deepEqual(errors, []);
-    await context.close();
+  } catch (error) {
+    const page = await desktop.firstWindow();
+    console.error('Original POS analytics test failure',error);
+    console.log('POS failure state',(await page.locator('body').innerText()).slice(0,3800));
+    throw error;
   } finally {
-    await browser.close();
+    await desktop.close();
   }
+});
+
+test('browser dashboard, browser-origin requests and cookie login are removed', async () => {
+  const root = await fetch(base.replace(/\/api$/, ''));
+  assert.equal(root.status, 404);
+  const browser = await fetch(base + '/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:4310' },
+    body: JSON.stringify({
+      email: 'browser@test.invalid',
+      password: 'example-password',
+      client: 'desktop',
+    }),
+  });
+  assert.equal(browser.status, 403);
+  const legacy = await api('/auth/login', {
+    email: 'browser@test.invalid',
+    password: 'example-password',
+    client: 'web',
+  });
+  assert.equal(legacy.status, 400);
 });

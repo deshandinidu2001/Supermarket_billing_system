@@ -1,6 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { Action, Bridge, Input } from '../shared/contracts';
 const actions = new Set([
+  'analyticsStatus',
+  'analyticsLogin',
+  'analyticsLogout',
+  'analyticsSelectStore',
+  'analyticsData',
+  'analyticsSale',
+  'analyticsQuestion',
+  'analyticsHistory',
+  'analyticsForecastSettings',
+  'analyticsDevices',
+  'analyticsRevokeDevice',
+  'analyticsLink',
+  'analyticsExport',
   'cloudStatus',
   'cloudConnect',
   'cloudDisconnect',

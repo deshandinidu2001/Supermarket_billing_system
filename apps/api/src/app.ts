@@ -3,7 +3,6 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { pool, transaction } from './db';
 import {
@@ -42,12 +41,10 @@ app.use(
 );
 app.use('/api', (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
-  if (
-    !['GET', 'HEAD'].includes(req.method) &&
-    req.headers.origin &&
-    req.headers.origin !== (process.env.WEB_ORIGIN || 'http://127.0.0.1:4310')
-  )
-    return next(fail(403, 'Request origin is not allowed.'));
+  if (req.headers.origin)
+    return next(
+      fail(403, 'Use the POS application or native mobile app. Browser access is not supported.'),
+    );
   next();
 });
 app.get(
@@ -67,7 +64,7 @@ app.post(
       .object({
         email: z.string().email().max(200),
         password: z.string().min(1).max(200),
-        client: z.enum(['web', 'mobile']).default('web'),
+        client: z.enum(['desktop', 'mobile']).default('desktop'),
       })
       .parse(req.body);
     const result = await pool.query('SELECT * FROM owners WHERE email=$1', [
@@ -81,24 +78,12 @@ app.post(
       digest(session),
       owner.id,
     ]);
-    res.cookie('ajith_session', session, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 86400000,
-      path: '/api',
-    });
-    res.json({ ownerId: owner.id, ...(input.client === 'mobile' ? { token: session } : {}) });
+    res.json({ ownerId: owner.id, token: session, expiresIn: 86400 });
   }),
 );
 const owner = (req: Request, res: Response, next: NextFunction) => {
   void (async () => {
-    const cookie = req.headers.cookie
-      ?.split(';')
-      .map((s) => s.trim())
-      .find((s) => s.startsWith('ajith_session='))
-      ?.slice(14);
-    const raw = req.headers.authorization?.replace(/^Bearer /, '') || cookie;
+    const raw = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
     if (!raw) throw fail(401, 'Sign in to continue.');
     const session = await pool.query(
       'SELECT owner_id FROM sessions WHERE token_hash=$1 AND expires_at>now()',
@@ -115,7 +100,6 @@ app.post(
   owner,
   wrap(async (_req, res) => {
     await pool.query('DELETE FROM sessions WHERE token_hash=$1', [res.locals.sessionHash]);
-    res.clearCookie('ajith_session', { path: '/api' });
     res.json({ ok: true });
   }),
 );
@@ -505,7 +489,6 @@ storeRouter.post(
     res.json({ answer, lastSynced: store.last_synced });
   }),
 );
-app.use(express.static(fileURLToPath(new URL('../../web/dist', import.meta.url))));
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   const e = error as { status?: number; message?: string; sequence?: number; expose?: boolean };
   const status = error instanceof z.ZodError ? 400 : (e.status ?? 500);

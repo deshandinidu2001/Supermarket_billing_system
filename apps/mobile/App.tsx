@@ -15,6 +15,7 @@ import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   request,
   SessionExpired,
+  AnalyticsApiError,
   freshness,
   money,
   displayValue,
@@ -25,7 +26,7 @@ import {
 import { addDays, localDay } from '../../packages/analytics/engine';
 import { labels, suggestedQuestions, type Label } from '../../packages/analytics/locales';
 import { writeCache, readCache, clearCache } from './src/cache';
-type Tab = 'overview' | 'sales' | 'inventory' | 'forecasts' | 'analyst' | 'alerts' | 'settings';
+type Tab = 'overview' | 'sales' | 'inventory' | 'forecasts' | 'analyst' | 'alerts' | 'connection';
 const tabs: Tab[] = [
   'overview',
   'sales',
@@ -33,7 +34,7 @@ const tabs: Tab[] = [
   'forecasts',
   'analyst',
   'alerts',
-  'settings',
+  'connection',
 ];
 type Row = Record<string, unknown>;
 interface Session {
@@ -135,6 +136,9 @@ function OwnerApp() {
     [detail, setDetail] = useState<Row>();
   const [settings, setSettings] = useState<OwnerData['forecastSettings']>(),
     [now, setNow] = useState(Date.now());
+  const [online, setOnline] = useState(false),
+    [knownStores, setKnownStores] = useState<OwnerStore[]>([]),
+    [devices, setDevices] = useState<{ id: string; revoked: boolean }[]>([]);
   const generation = useRef(0),
     cacheQueue = useRef(Promise.resolve()),
     account = useRef<Session | undefined>(undefined);
@@ -152,6 +156,9 @@ function OwnerApp() {
     setHistory([]);
     setDetail(undefined);
     setCached(undefined);
+    setKnownStores([]);
+    setDevices([]);
+    setOnline(false);
     await cacheQueue.current.catch(() => {});
     await clearCache();
     await SecureStore.deleteItemAsync('ajith_owner_session');
@@ -175,6 +182,7 @@ function OwnerApp() {
           const saved = JSON.parse(raw) as Session;
           account.current = saved;
           setSession(saved);
+          setKnownStores(saved.stores);
           setBase(saved.base);
           setStoreId(saved.stores[0]?.id ?? '');
         }
@@ -204,11 +212,29 @@ function OwnerApp() {
     setBusy(true);
     setError('');
     try {
+      const health = await call<{ ok: boolean }>('/health');
+      if (!health.ok) throw new Error(t.serverOffline);
+      const availableStores = await call<OwnerStore[]>('/stores');
+      if (current !== generation.current) return;
+      setKnownStores(availableStores);
+      if (!availableStores.some((s) => s.id === storeId)) {
+        if (availableStores[0]) setStoreId(availableStores[0].id);
+        else {
+          setData(undefined);
+          setTab('connection');
+        }
+        return;
+      }
       const result = await call<OwnerData>(`/stores/${storeId}/analytics?from=${from}&to=${to}`);
       if (current !== generation.current) return;
       setData(result);
       setSettings(result.forecastSettings);
       setCached(undefined);
+      setOnline(true);
+      const connectedDevices = await call<{ id: string; revoked: boolean }[]>(
+        `/stores/${storeId}/devices`,
+      );
+      if (current === generation.current) setDevices(connectedDevices);
       cacheQueue.current = cacheQueue.current
         .catch(() => {})
         .then(async () => {
@@ -222,6 +248,15 @@ function OwnerApp() {
         setError(e.message);
         return;
       }
+      if (e instanceof AnalyticsApiError && e.status < 500) {
+        setError(e.message);
+        return;
+      }
+      setOnline(false);
+      setDevices([]);
+      setAnswer(undefined);
+      setHistory([]);
+      setDetail(undefined);
       const saved = await readCache(session.ownerId, storeId);
       if (current !== generation.current) return;
       if (saved) {
@@ -241,6 +276,8 @@ function OwnerApp() {
     setHistory([]);
     setDetail(undefined);
     setSearch('');
+    setDevices([]);
+    setOnline(false);
     void load();
     return () => {
       generation.current++;
@@ -316,6 +353,8 @@ function OwnerApp() {
                 });
                 account.current = value;
                 setSession(value);
+                setKnownStores(stores);
+                setOnline(true);
                 setStoreId(stores[0]?.id ?? '');
                 setPassword('');
               })
@@ -337,7 +376,7 @@ function OwnerApp() {
         <View>
           <Text style={s.brand}>Ajith</Text>
           <Text style={s.muted}>
-            {session.stores.find((st) => st.id === storeId)?.name ?? t.store}
+            {knownStores.find((st) => st.id === storeId)?.name ?? t.store}
           </Text>
         </View>
         <Button title={t.refresh} quiet onPress={() => void load()} disabled={busy} />
@@ -369,6 +408,8 @@ function OwnerApp() {
         refreshControl={<RefreshControl refreshing={busy} onRefresh={() => void load()} />}
       >
         <Text style={[s.sync, stamp.stale && s.warning]}>
+          {online ? t.serverReady : t.serverOffline}
+          {' · '}
           {stamp.text}
           {stamp.stale ? ` · ${t.stale}` : ''}
         </Text>
@@ -400,7 +441,7 @@ function OwnerApp() {
             <Button title={t.retry} quiet onPress={() => void load()} />
           </View>
         )}
-        {!session.stores.length && <Text>No stores are assigned to this owner.</Text>}
+        {!knownStores.length && <Text>{t.posSetupHint}</Text>}
         {data && report && (
           <>
             {tab === 'overview' && (
@@ -568,7 +609,7 @@ function OwnerApp() {
                 <Field title={t.question} value={question} onChange={setQuestion} />
                 <Button
                   title={t.ask}
-                  disabled={busy || question.trim().length < 3 || !!cached}
+                  disabled={busy || question.trim().length < 3 || !!cached || !online}
                   onPress={() => ask(question)}
                 />
                 {suggestedQuestions.map((q) => (
@@ -576,7 +617,7 @@ function OwnerApp() {
                     key={q}
                     title={q}
                     quiet
-                    disabled={busy || !!cached}
+                    disabled={busy || !!cached || !online}
                     onPress={() => {
                       setQuestion(q);
                       ask(q);
@@ -600,7 +641,7 @@ function OwnerApp() {
                     key={i}
                     title={h.question}
                     quiet
-                    disabled={busy || !!cached}
+                    disabled={busy || !!cached || !online}
                     onPress={() => {
                       setQuestion(h.question);
                       ask(h.question);
@@ -656,78 +697,99 @@ function OwnerApp() {
                 )}
               </>
             )}
-            {tab === 'settings' && (
-              <>
-                <Text style={s.heading}>{t.store}</Text>
-                {session.stores.map((st) => (
-                  <Button
-                    key={st.id}
-                    title={`${st.id === storeId ? '✓ ' : ''}${st.name}`}
-                    quiet
-                    onPress={() => {
-                      generation.current++;
-                      setData(undefined);
-                      setStoreId(st.id);
-                    }}
-                  />
-                ))}
-                <Text style={s.heading}>{t.language}</Text>
-                <Button
-                  quiet
-                  title={language === 'en' ? 'සිංහල' : 'English'}
-                  onPress={() => {
-                    const lang = language === 'en' ? 'si' : 'en';
-                    setLanguage(lang);
-                    void SecureStore.setItemAsync('ajith_owner_language', lang);
-                  }}
-                />
-                <Text style={s.heading}>{t.forecast}</Text>
-                {settings &&
-                  (Object.keys(settings) as (keyof typeof settings)[]).map((k) => (
-                    <Field
-                      key={k}
-                      title={t[k as Label]}
-                      value={String(settings[k])}
-                      onChange={(v) => setSettings({ ...settings, [k]: Number(v) })}
-                    />
-                  ))}
-                <Button
-                  title={t.save}
-                  disabled={busy || !!cached}
-                  onPress={() =>
-                    void action(async () => {
-                      await call(`/stores/${storeId}/forecast-settings`, settings);
-                      await load();
-                    })
-                  }
-                />
-                <Text style={s.heading}>Connection</Text>
-                <Text style={s.muted}>
-                  {session.base}
-                  {`\n`}
-                  {stamp.text}
-                </Text>
-                <Text style={s.heading}>Privacy</Text>
-                <Text style={s.muted}>{t.privacy}</Text>
-                <Button
-                  title={t.logout}
-                  quiet
-                  onPress={() =>
-                    void action(async () => {
-                      try {
-                        await call('/auth/logout', {});
-                      } finally {
-                        await wipe();
-                      }
-                    })
-                  }
-                />
-              </>
-            )}
             {((tab === 'sales' && !report.sales.length) ||
               (tab === 'inventory' && !products.length)) && <Text style={s.muted}>{t.empty}</Text>}
           </>
         )}
+        {tab === 'connection' && (
+          <>
+            <Text style={s.heading}>{t.store}</Text>
+            {knownStores.map((st) => (
+              <Button
+                key={st.id}
+                title={`${st.id === storeId ? '✓ ' : ''}${st.name}`}
+                quiet
+                onPress={() => {
+                  generation.current++;
+                  setData(undefined);
+                  setStoreId(st.id);
+                }}
+              />
+            ))}
+            <Text style={s.heading}>{t.language}</Text>
+            <Button
+              quiet
+              title={language === 'en' ? 'සිංහල' : 'English'}
+              onPress={() => {
+                const lang = language === 'en' ? 'si' : 'en';
+                setLanguage(lang);
+                void SecureStore.setItemAsync('ajith_owner_language', lang);
+              }}
+            />
+            <Text style={s.heading}>{t.forecast}</Text>
+            {settings &&
+              (Object.keys(settings) as (keyof typeof settings)[]).map((k) => (
+                <Field
+                  key={k}
+                  title={t[k as Label]}
+                  value={String(settings[k])}
+                  onChange={(v) => setSettings({ ...settings, [k]: Number(v) })}
+                />
+              ))}
+            <Button
+              title={t.save}
+              disabled={busy || !!cached || !online}
+              onPress={() =>
+                void action(async () => {
+                  await call(`/stores/${storeId}/forecast-settings`, settings);
+                  await load();
+                })
+              }
+            />
+            <Text style={s.heading}>{t.connection}</Text>
+            <Text style={s.muted}>{t.posSetupHint}</Text>
+            <Text style={s.muted}>
+              {session.base}
+              {`\n`}
+              {stamp.text}
+            </Text>
+            <Text style={s.heading}>{t.devices}</Text>
+            {online &&
+              devices
+                .filter((d) => !d.revoked)
+                .map((d) => (
+                  <View key={d.id} style={s.row}>
+                    <Text>{d.id.slice(0, 8)}</Text>
+                    <Button
+                      title={t.revoke}
+                      quiet
+                      disabled={busy}
+                      onPress={() =>
+                        void action(async () => {
+                          await call(`/stores/${storeId}/devices/${d.id}/revoke`, {});
+                          await load();
+                        })
+                      }
+                    />
+                  </View>
+                ))}
+            {!online && <Text style={s.warning}>{t.serverOffline}</Text>}
+            <Text style={s.heading}>Privacy</Text>
+            <Text style={s.muted}>{t.privacy}</Text>
+            <Button
+              title={t.logout}
+              quiet
+              onPress={() =>
+                void action(async () => {
+                  const previous = session;
+                  await wipe();
+                  void request(previous.base, '/auth/logout', {}, previous.token).catch(() => {});
+                })
+              }
+            />
+          </>
+        )}
+
         {busy && !data && <ActivityIndicator color="#176448" />}
       </ScrollView>
     </SafeAreaView>

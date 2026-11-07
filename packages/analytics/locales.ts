@@ -1,5 +1,10 @@
 export const labels = {
   en: {
+    connection: 'Connection',
+    serverReady: 'Analytics server connected',
+    serverOffline: 'Analytics server unavailable',
+    posSetupHint:
+      'Connect the desktop in POS → Analytics → Connection. Use the same server address and owner account here.',
     overview: 'Overview',
     sales: 'Sales',
     inventory: 'Inventory',
@@ -73,6 +78,11 @@ export const labels = {
       'This app shows business summaries. Customer contact details and POS credentials stay on the desktop.',
   },
   si: {
+    connection: 'සම්බන්ධතාව',
+    serverReady: 'විශ්ලේෂණ සේවාදායකය සම්බන්ධයි',
+    serverOffline: 'විශ්ලේෂණ සේවාදායකය සම්බන්ධ නැත',
+    posSetupHint:
+      'පරිගණකයේ POS → විශ්ලේෂණ → සම්බන්ධතාව තුළ සම්බන්ධ කරන්න. මෙහිද එකම සේවාදායක ලිපිනය සහ හිමිකරු ගිණුම භාවිත කරන්න.',
     overview: 'දළ විශ්ලේෂණය',
     sales: 'විකුණුම්',
     inventory: 'තොග',

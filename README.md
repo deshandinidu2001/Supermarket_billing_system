@@ -60,11 +60,13 @@ Developed the desktop interface, local database, business logic and Electron int
 - Local receipt printing and document generation.
 - Windows installer packaging with Electron Builder and NSIS.
 
-### Online Owner Analytics and Mobile Companion
+### Owner Analytics in the POS and Mobile Companion
 
 - Optional background synchronization to a separate cloud database, with durable offline queues, retries and duplicate protection. Desktop billing continues without internet access.
-- A read-only owner web dashboard and Expo mobile app for sales, profit, inventory, expiry alerts and reorder insights.
-- Separate cloud owner accounts, authorized store selection, revocable desktop enrollment and visible data freshness.
+- One owner-only Analytics sidebar section inside the POS, with horizontal Overview, Sales, Inventory, Forecasts, AI analyst, Alerts and Connection tabs.
+- Online analytics for sales, profit, inventory, expiry and reorder insights, with a native Expo companion app using the same API.
+- Server reachability checks hide desktop online analytics when disconnected; checkout, stock management and local reports continue offline.
+- Separate cloud owner accounts, authorized store selection, direct desktop pairing, revocable devices and visible data freshness. Pairing and sync controls are managed inside the POS.
 - Supported natural-language questions about top products, profit, low stock, expiry and weekly comparisons, plus an optional server-side AI provider for broader guarded SQL queries.
 - Explainable demand forecasts using moving averages and weekly patterns, evaluated chronologically, with configurable reorder preferences and insufficient-history warnings.
 - Account-scoped, encrypted mobile summary caching with explicit offline timestamps and cleanup on logout.
@@ -90,7 +92,7 @@ Payment methods are recorded within the application; bank, card-terminal and QR 
 | Build and packaging    | Vite, esbuild, Electron Builder, NSIS                                                |
 | Quality tools          | Vitest, Playwright, ESLint, Prettier, TypeScript checks                              |
 | Cloud analytics API    | Node.js, Express, TypeScript, PostgreSQL, pg                                         |
-| Owner web dashboard    | React, TypeScript, Vite, Recharts                                                    |
+| Owner analytics in POS | React, TypeScript, Recharts, validated Electron IPC                                 |
 | Owner mobile app       | React Native, Expo, Expo SecureStore                                                 |
 | Optional AI queries    | Server-side provider adapter, PostgreSQL SELECT validation, restricted database role |
 

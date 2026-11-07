@@ -1,45 +1,68 @@
-# Local analytics services
+# Owner analytics setup
 
-The desktop app keeps its existing local database and can run without these services. This extension uses one authoritative desktop device per store. Remote clients can view records and change reporting preferences; they cannot change operational stock or sales.
+Analytics is part of the desktop POS. Open the owner-only **Analytics** sidebar entry and use its horizontal tabs. There is no separate browser dashboard.
 
-## PostgreSQL and API
+## API and PostgreSQL
 
-Use a separate PostgreSQL database. A Docker Compose definition is included:
+Keep a separate PostgreSQL database for the analytics projection. The desktop SQLite store remains authoritative and works offline.
 
 ```powershell
 $env:ANALYTICS_DB_PASSWORD = '<choose-a-local-database-password>'
 docker compose -f compose.analytics.yml up -d
 npm install --prefix apps/api
-npm install --prefix apps/web
 $env:DATABASE_URL = 'postgresql://ajith:<URL-encoded-password>@127.0.0.1:55432/ajith_analytics'
 npm run migrate --prefix apps/api
 $env:OWNER_EMAIL = '<owner-email>'
-$env:OWNER_PASSWORD = '<choose-a-separate-cloud-password-of-at-least-12-characters>'
+$env:OWNER_PASSWORD = '<separate-cloud-password-of-at-least-12-characters>'
 $env:STORE_NAME = 'Ajith Super Market'
 npm run owner --prefix apps/api
 Remove-Item Env:OWNER_PASSWORD
 npm run analytics:api
 ```
 
-Use your own values, not the angle-bracket examples. The owner command preserves an existing account's password. Cloud passwords are independent of desktop passwords/PINs. No default cloud owner account is provided. The SQL migration needs permission to create/grant the `ajith_analytics_reader` role. For a non-superuser deployment, use a migration administrator and grant the application runtime role DML privileges on its tables plus membership in that reader role. The runtime role must not have SUPERUSER or BYPASSRLS.
+Use your own values. Existing account passwords are preserved by the provisioning command. Cloud credentials are independent of desktop passwords and approval PINs. Environment variables are supplied by your shell or process manager; the API does not automatically load `.env` files. Examples are in `apps/api/.env.example`.
 
-`apps/api/.env.example` lists configuration. Scripts use process environment variables; they do not load `.env` files automatically. Load your environment through your process manager or set it in PowerShell.
+Migrations require permission to create/grant the `ajith_analytics_reader` role. For production, use a migration administrator and a runtime role with DML privileges and membership in that reader role. The runtime role must have neither SUPERUSER nor BYPASSRLS.
 
-The initial owner utility creates one store and membership. Additional owners/stores can be provisioned through the same administrator process with separate email values. Multiple-store memberships are supported in the clients and API; there is no self-service membership editor.
+## Pair the POS without a browser
 
-In another terminal:
+1. Rebuild/restart the desktop after installing an updated version, then sign in as its owner.
+2. Open **Analytics → Connection**.
+3. Enter the analytics server address and separate cloud owner email/password. For this PC's development server, use `http://127.0.0.1:4311`.
+4. Sign in and select the authorized store.
+5. Choose **Connect this POS**. This sends the local sales/stock projection to the selected store. Enrollment happens directly between the main process and API.
+6. Keep the POS open while pending changes upload, then use Refresh and the other horizontal tabs.
+
+Previously paired desktops retain their device credentials and outbox. Signing into analytics does not automatically enroll a new store or replace an existing device. Disconnect an existing store before pairing this POS to another store. Sync now, rebuild, disconnect, forecast preferences and device revocation are all in the Connection tab.
+
+An owner session exists only in main-process memory. Locking, switching accounts or closing the POS clears it and attempts server logout. Background synchronization uses its separate encrypted device credential, so it can continue while the owner analytics screen is signed out.
+
+The desktop probes the configured API rather than trusting a network icon. When unavailable, analytics panels clear their displayed data and online actions become unavailable. Local checkout, inventory and reports continue working. A local development API can be reachable without internet; a remotely hosted API needs the corresponding network connection.
+
+## Mobile app
+
+Install/run `apps/mobile` using [mobile-app.md](mobile-app.md). Use the same API address and cloud owner account as the POS, and select the same store. The mobile Connection tab explains desktop setup and exposes authorized devices. The phone does not connect directly to SQLite or depend on a browser application.
+
+## AI provider
+
+Suggested questions use trusted server calculations without AI credentials. For broader questions, configure `AI_BASE_URL`, `AI_API_KEY` and `AI_MODEL` on the API server only. The provider must implement a chat-completions JSON API. Questions and a minimal schema description are sent, not the full synchronized dataset.
+
+Generated SQL is parsed, restricted to the approved view and read-only database role, scoped by row security, cost checked, time limited and capped at 100 results. Provider availability must be verified separately.
+
+## Build and deploy the API
 
 ```powershell
-npm run analytics:web
+npm run build --prefix apps/api
+npm start --prefix apps/api
 ```
 
-Open `http://127.0.0.1:4310`, sign in, open Settings and create an enrollment code. In the desktop owner Settings → Cloud analytics, enter `http://127.0.0.1:4311` and that code. Enrollment is single use and expires after 10 minutes. Enrolling a replacement desktop revokes the previous device. Credentials remain in the desktop main process, encrypted with Electron safeStorage; none are exposed through status IPC.
+Deploy the API bundle and its production dependencies, apply `apps/api/sql` migrations separately, and supply secrets through your hosting environment. Use HTTPS for remote POS/mobile access and restrict PostgreSQL to the backend. No browser assets or frontend deployment are required. Browser-origin requests and cookie authentication are unsupported; native clients use expiring bearer sessions.
 
-Start desktop development with its existing command. Cloud synchronization is disabled until enrollment; migrations do not enroll a real store automatically. Sync runs while the desktop app is open, in batches of 200, with a 15-second idle polling interval and bounded retries. Successful backfill pages continue with short yielding pauses until the queue drains. Pending counts and failures appear in desktop settings.
+The API binds loopback by default. Set `HOST` deliberately for your private network or hosting platform. Configure reverse proxy trust/rate limiting for that specific infrastructure. No public deployment, DNS, paid service or mobile signing account is created automatically.
 
-## Tests
+## Checks
 
-Use a dedicated database named `ajith_test_*`; the analytics runner refuses other database names.
+Use an isolated PostgreSQL database named `ajith_test_*`. The analytics runner refuses other names.
 
 ```powershell
 $env:DATABASE_URL = 'postgresql://<test-user>:<password>@127.0.0.1:55432/ajith_test_analytics'
@@ -50,23 +73,9 @@ npm run typecheck
 npm run lint
 npm run test:integration
 npm run test:operations
-npm run build
+npm run test:e2e
 npm run typecheck --prefix apps/api
-npm run build --prefix apps/web
+npm run typecheck --prefix apps/mobile
 ```
 
-Analytics fixtures use isolated temporary SQLite databases and a test PostgreSQL database. Tests include a real Electron worker and OS-encrypted credentials. Never point these checks at a live database. The cloud suite requires a local graphical Electron-capable environment. Web UI verification uses Playwright's installed Chromium.
-
-## Optional broader AI questions
-
-Suggested question types use deterministic query logic and require no AI subscription. Broader questions require `AI_BASE_URL`, `AI_API_KEY` and `AI_MODEL` on the API server. The provider must support a chat-completions JSON API. Only a schema description and the question are sent; synchronized transaction datasets are not included in prompts. Broader answers identify their period as unspecified unless the generated query supplies it. Do not interpret them as the dashboard's selected date filter.
-
-The server parses generated SQL, allows a restricted SELECT over one approved view, changes to a read-only database role, enforces row security, limits output to 100 rows, rejects expensive plans and uses a 1.5-second SQL timeout. Suggested financial questions use trusted calculations that retain the POS's cost/refund definitions. Provider availability and credentials must be validated separately.
-
-## HTTPS deployment
-
-Build the web client with `npm run build --prefix apps/web`. The API serves its output directly, so production web/API can share one HTTPS origin. Set `WEB_ORIGIN` to that exact origin and `NODE_ENV=production`. Terminate TLS using your hosting/reverse proxy, restrict network access to PostgreSQL, supply secrets through the host's secret manager and back up the cloud database separately.
-
-Build the API with `npm run build --prefix apps/api` and run its bundled server with `npm start --prefix apps/api`. Keep the API's production dependencies installed, and deploy the sibling `apps/web/dist` output with it. The bundle includes shared application source; database migrations remain in `apps/api/sql` and are applied separately before starting the service.
-
-The server binds loopback by default. Set `HOST` deliberately when exposing it to a private network/container. Configure proxy trust and per-client rate limiting for your actual reverse proxy rather than trusting arbitrary forwarded headers. No public deployment, DNS, certificates, subscriptions or cloud accounts are created by this implementation.
+The analytics runner builds the POS and native helpers before exercising temporary SQLite stores, the API and the actual Electron analytics screen. Do not point tests at a live store.

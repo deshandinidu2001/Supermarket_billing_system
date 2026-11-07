@@ -55,6 +55,26 @@ try {
   assert.equal(cloudStatus.connected, false);
   assert.equal(cloudStatus.pending, 0);
   assert.equal(cloudStatus.error, null);
+  const analyticsActions = [
+    'analyticsStatus',
+    'analyticsLogin',
+    'analyticsLogout',
+    'analyticsSelectStore',
+    'analyticsData',
+    'analyticsSale',
+    'analyticsQuestion',
+    'analyticsHistory',
+    'analyticsForecastSettings',
+    'analyticsDevices',
+    'analyticsRevokeDevice',
+    'analyticsLink',
+    'analyticsExport',
+  ];
+  assert.equal((await invoke('analyticsStatus')).signedIn, false);
+  for (const action of analyticsActions) {
+    const result = await page.evaluate((action) => window.pos.invoke(action, null), action);
+    assert.equal(result.error, 'validation', `${action} must pass through the desktop bridge`);
+  }
   for (const action of ['cloudConnect', 'cloudDisconnect', 'cloudRetry', 'cloudRebuild']) {
     const rejected = await page.evaluate((action) => window.pos.invoke(action, null), action);
     assert.equal(
@@ -65,6 +85,7 @@ try {
   }
   for (const [route, heading] of [
     ['products', 'Products & stock'],
+    ['analytics', 'Analytics'],
     ['categories', 'Categories'],
     ['suppliers', 'Suppliers'],
     ['purchases', 'Purchases'],
@@ -449,6 +470,10 @@ try {
   await page.locator('.app-shell').waitFor();
   assert.equal(await page.locator('.nav-link').count(), 4);
   const cashierBoot = await invoke('bootstrap');
+  for (const action of analyticsActions) {
+    const result = await page.evaluate((action) => window.pos.invoke(action, null), action);
+    assert.equal(result.error, 'forbidden', `${action} must remain owner-only`);
+  }
   for (const [action, input] of [
     ['cloudStatus', {}],
     ['cloudConnect', { url: 'http://127.0.0.1:4311', code: 'x'.repeat(24) }],

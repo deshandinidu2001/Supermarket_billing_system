@@ -9,9 +9,9 @@ flowchart LR
   Stage -->|Snapshot end marker| Current[Visible analytics projection]
   Current --> Reports[Trusted reports and forecasts]
   Current --> Reader[Restricted SQL reader]
-  Reports --> Web[Owner web dashboard]
+  Reports --> POSView[POS owner analytics tabs]
   Reports --> Mobile[Expo owner app]
-  Reader --> Web
+  Reader --> POSView
   Reader --> Mobile
 ```
 
@@ -35,7 +35,7 @@ Before an application restore replaces SQLite, the worker drains its in-flight r
 
 The owner chooses Rebuild cloud copy and confirms replacement. The server switches the device to a fresh stream generation; the desktop rematerializes its current snapshot. Old cloud reports remain visible until the replacement end marker. If enrollment/reset or credential storage is interrupted, reconnect/rebuild from desktop settings; never manually delete outbox rows to bypass a missing sequence. Keep the desktop's safety backup and verify reporting totals after a restore.
 
-Device revocation is available online. Disconnect currently requires the cloud to acknowledge revocation before local credentials are removed, so an offline owner should revoke the device from the web dashboard when connectivity permits. Normal billing is unaffected.
+Device revocation is available through POS → Analytics → Connection or the native mobile Connection tab when the API is reachable. Normal billing is unaffected.
 
 ## Reporting and forecasting definitions
 
@@ -53,10 +53,16 @@ The initial projection implementation bounds each analytics load to 250,000 reco
 
 ## Access boundaries
 
-Owner sessions and device secrets are separate opaque tokens stored as hashes on the server. Browser cookies are HttpOnly/SameSite Strict and secure in production; state-changing browser requests require the configured origin. Sessions expire after 24 hours and logout revokes them. Enrollment codes expire after 10 minutes and are consumed atomically.
+Owner sessions and device secrets are separate opaque tokens stored as hashes on the server. The browser client and cookie authentication have been removed. Native clients use bearer sessions; the POS keeps its token in main-process memory and the mobile app uses SecureStore. Requests carrying a browser Origin are rejected. Sessions expire after 24 hours and logout revokes them. Enrollment codes expire after 10 minutes and are consumed atomically.
 
 Every owner store route checks membership. Device ingestion binds store identity to its credential. Generated SQL runs under a NOLOGIN/NOBYPASSRLS reader role with SELECT-only access and forced store row policies. Product strings and questions are treated as untrusted data; the model cannot change the session's store setting or choose a privileged role.
 
 Mobile tokens and limited cached summaries use Expo SecureStore. Cache namespaces include account and store; a manifest is published only after all encrypted chunks are written. Logout/account changes await pending cache writes and remove all indexed chunks. Cached screens show their saved timestamp and warn that lists may be incomplete. The owner can view cached summaries offline, but asking new questions and saving preferences require connectivity.
 
 References used for platform boundaries: [Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage), [PostgreSQL row security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html), [Expo SecureStore](https://docs.expo.dev/versions/latest/sdk/securestore/).
+
+## POS screen and mobile access
+
+The desktop exposes one owner-only sidebar topic with horizontal subtopics. Named, validated IPC commands handle report reads, questions, preferences, exports and direct device pairing. Every command enforces the local owner role independently of UI navigation. API addresses require HTTPS except local development; there is no iframe, arbitrary URL proxy or relaxed renderer CSP. Desktop analytic panels clear when the configured server is unavailable, while local billing continues. Lock, account switches, restore and shutdown clear/dispose the owner session and cancel pending requests.
+
+The mobile app connects directly to the same API and account. Its Connection tab is available even when report loading fails; limited cached summaries remain explicitly labeled offline.

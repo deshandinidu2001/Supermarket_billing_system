@@ -1,20 +1,28 @@
 # Ajith Owner mobile app
 
-The Expo app in `apps/mobile` includes sign-in, authorized store selection, overview, searchable sales/details, inventory, forecasts/reorder explanations, AI questions/history, actionable in-app stock/expiry alerts and reporting/language settings. It uses the same analytics API and definitions as the owner web dashboard.
+The native Expo companion uses the same analytics API and cloud owner account as **POS → Analytics**. It includes horizontal Overview, Sales, Inventory, Forecasts, AI analyst, Alerts and Connection tabs. There is no browser dashboard dependency or mobile web target.
 
 ## Development
 
 ```powershell
 npm install --prefix apps/mobile
-$env:EXPO_PUBLIC_API_URL = 'https://<your-analytics-host>'
+$env:EXPO_PUBLIC_API_URL = 'https://<your-analytics-api-host>'
 npm run analytics:mobile
 ```
 
-Use the Expo development client matching the SDK pinned in the app lockfile. Sign in with the separate cloud owner account. For a physical phone, the server address must be reachable from the phone; `localhost` refers to the phone itself. HTTP is accepted only in development builds. Public configuration contains the API address only; AI keys and database credentials stay on the server.
+Use an Expo development client matching the locked SDK. A physical phone needs an API address reachable from that phone: its own localhost does not refer to the desktop. Production sign-in requires HTTPS; HTTP is permitted only in development. Public configuration contains the API address, never provider or database credentials.
 
-English/Sinhala labels are shared with the owner web app. Core navigation is bilingual; some technical forecast explanations and error messages remain in English. No translation completeness beyond the shared label dictionary is claimed.
+Pair the desktop through **POS → Analytics → Connection → Connect this POS**. In the phone app, enter the same API address, sign in and choose the corresponding store. Device status and revocation are available in the Connection tab. Reporting preferences remain separate from operational product and stock data.
 
-## Verification and builds
+## Connectivity and storage
+
+The app checks API health and reloads authorized store membership. Online-only actions, including AI questions, forecast preference updates and device revocation, are unavailable when disconnected. A limited previously viewed summary can still be displayed, marked with its saved timestamp and incomplete-list warning. It is not presented as current stock or live sales.
+
+Owner tokens and bounded account/store-specific cache chunks use SecureStore. Logout clears the local session/cache immediately and attempts network revocation without waiting for connectivity. The Connection tab and logout remain available when reports cannot load or an account has no store.
+
+Core labels are shared with the desktop analytics view in English/Sinhala; some returned forecast explanations remain English. Confirm Sinhala rendering on physical devices before distribution.
+
+## Verification and native builds
 
 ```powershell
 npm run typecheck --prefix apps/mobile
@@ -24,8 +32,4 @@ npx expo export --platform android --output-dir build-check/android
 npx expo export --platform ios --output-dir build-check/ios
 ```
 
-These commands check types/dependency compatibility and generate JavaScript/Hermes bundles. They do not create an APK or signed iOS app and do not prove physical-device behavior.
-
-`eas.json` provides preview APK and production profiles. With your own Expo account and signing configuration, use `eas build --platform android --profile preview` for an installable test APK. iOS distribution requires the corresponding Apple signing/account setup. No accounts, paid builds, app-store submissions or signing credentials are created automatically.
-
-Before distribution, test device login/logout, secure storage, background/foreground transitions, Sinhala rendering, dates, long lists, cached-data warnings, server unavailability and account switching on actual devices. In-app alerts are implemented; push notifications are not configured.
+Exports produce JavaScript/Hermes bundles, not APKs or signed iOS packages. With your own Expo/signing configuration, `eas.json` provides preview APK and production profiles. Verify login/logout, account switching, network loss, cached-data warnings, secure storage and lifecycle transitions on actual Android/iOS devices. Current alerts are in-app; push delivery is not configured.

@@ -18,9 +18,6 @@
       "predictiveBackGestureEnabled": false,
       "package": "lk.ajith.owner"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
     "plugins": ["expo-secure-store"]
   }
 }

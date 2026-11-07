@@ -4204,8 +4204,3 @@ textarea::placeholder {
   color: var(--amber);
   font-size: 9px;
 }
-/* Cloud setup stays inside the owner settings surface. */
-.cloud-connect-form { display: grid; gap: 14px; max-width: 560px; }
-.cloud-connect-form label { display: grid; gap: 7px; }
-.cloud-connect-form input { width: 100%; padding: 11px; border: 1px solid var(--border, #cdd8d1); border-radius: 6px; color: inherit; background: transparent; }
-.cloud-actions button { margin-right: 8px; margin-top: 8px; }

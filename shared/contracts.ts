@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { CloudStatus } from './analytics';
+import { ownerAnalyticsSchemas, type OwnerAnalyticsOutputs } from './owner-analytics';
 import type {
   Bootstrap,
   Cart,
@@ -145,6 +146,7 @@ export const settingsSchema = z.object({
 });
 const range = { from: date, to: date };
 export const schemas = {
+  ...ownerAnalyticsSchemas,
   cloudStatus: z.object({}),
   cloudConnect: z.object({
     url: z.string().url().max(250),
@@ -326,7 +328,7 @@ export const schemas = {
 };
 export type Action = keyof typeof schemas;
 export type Input<K extends Action> = z.input<(typeof schemas)[K]>;
-export interface Outputs {
+export interface Outputs extends OwnerAnalyticsOutputs {
   cloudStatus: CloudStatus;
   cloudConnect: CloudStatus;
   cloudDisconnect: CloudStatus;

@@ -66,6 +66,7 @@ const Stocktaking = lazy(() => import('./features/Stocktaking'));
 const SupplierReturns = lazy(() => import('./features/SupplierReturns'));
 const Checkout = lazy(() => import('./features/Checkout'));
 const Dashboard = lazy(() => import('./features/Dashboard'));
+const OnlineAnalytics = lazy(() => import('./features/OnlineAnalytics'));
 const Products = lazy(() => import('./features/Products'));
 const Records = lazy(() => import('./features/Records'));
 const Purchases = lazy(() => import('./features/Purchases'));
@@ -283,6 +284,7 @@ function PasswordChange() {
 const entries = [
   { path: 'checkout', icon: ShoppingCart, owner: false },
   { path: 'dashboard', icon: LayoutDashboard, owner: true },
+  { path: 'analytics', icon: BarChart3, owner: true },
   { path: 'held', icon: FileClock, owner: false },
   { path: 'returns', icon: RotateCcw, owner: false },
   { path: 'sales', icon: ReceiptText, owner: false },
@@ -469,6 +471,7 @@ function Shell() {
                 {user.role === 'owner' && (
                   <>
                     <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/analytics" element={<OnlineAnalytics />} />
                     <Route path="/products" element={<Products />} />
                     <Route path="/stocktaking" element={<Stocktaking />} />
                     <Route path="/supplierReturns" element={<SupplierReturns />} />

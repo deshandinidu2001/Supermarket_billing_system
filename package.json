@@ -26,7 +26,6 @@
     "test:operations:ui": "node scripts/operations-smoke.mjs",
     "test:analytics": "node scripts/analytics-test.mjs",
     "analytics:api": "npm run dev --prefix apps/api",
-    "analytics:web": "npm run dev --prefix apps/web",
     "analytics:mobile": "npm start --prefix apps/mobile"
   },
   "dependencies": {

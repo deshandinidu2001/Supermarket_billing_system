@@ -1,20 +1,11 @@
-# Owner analytics implementation
+# Integrated owner analytics
 
-The local store remains the operational source of truth. Additive SQLite triggers capture an explicit field allowlist in the same transaction as each change. No cloud operation participates in checkout.
+The owner uses one **Analytics** item in the POS sidebar. Horizontal tabs contain Overview, Sales, Inventory, Forecasts, AI analyst, Alerts and Connection. The existing local Overview and reports remain available offline.
 
-Cloud ingestion uses an ordered, deduplicated device stream. Backfill is materialized atomically in a durable outbox and uploaded in resumable pages. A staging generation replaces the visible PostgreSQL projection only at its end marker. One active source device is permitted per store. Restores require a deliberate rebuild rather than attempting a bidirectional merge.
+Use the established POS tokens: panel white #ffffff, background #f4f6f7, ink #1c2b30, green #15704f, muted #718187 and amber #936522. Reuse bundled Inter/Sinhala fonts, existing buttons and Radix dialogs. Tabs form a clear horizontal section boundary. Revenue, trends and stock exceptions carry the visual emphasis, with dense readable tables and no duplicate app shell or decorative login page. Dark mode inherits the POS theme variables.
 
-Build stages: sync and ingestion; owner authentication; trusted reports; web and mobile clients; question routing and guarded SQL; chronological forecast evaluation; integration and UI verification.
+The main process holds the cloud owner bearer session and sends validated API requests. The renderer receives only report/status data through named IPC actions. It never obtains owner/device tokens or unrestricted network access. Unavailable server connectivity hides desktop online reports and disables their actions.
 
-## Interface direction
+The Connection tab performs owner sign-in, direct POS pairing, synchronization controls and device revocation. PostgreSQL remains the cloud projection; the mobile native app uses the API directly. The former browser project, static hosting, browser cookies and browser launch/build scripts are removed.
 
-Use grocery-green #176448, ink #17372e, white #ffffff, pale mint #eef6f1, amber #a56414 and muted text #64776e. Reuse bundled Inter and Sinhala fonts. A left-aligned store header and sync notice lead to an earnings strip, a wide sales chart and a product ledger. Keep tables dense enough for real stock decisions, with airy mobile lists and clear 48px actions. Charts and stock exceptions carry the visual emphasis; avoid decorative cards around every value.
-
-Mobile uses the same green/white vocabulary, a compact metric grid, scrollable section navigation and explicit cached-data timestamps. No remote-write controls appear in either owner client.
-
-## Initial assumptions
-
-- One authoritative desktop per store; one owner can have multiple stores.
-- Currency is LKR integer cents. Store timezone defaults to Asia/Colombo.
-- Device enrollment requires an owner-generated, short-lived code.
-- No automated orders, push provider or public deployment is included without external configuration.
+Verify native IPC authorization, direct pairing, report rendering, network loss/recovery, offline local checkout, session clearing, mobile cache behavior and native bundles using isolated data.

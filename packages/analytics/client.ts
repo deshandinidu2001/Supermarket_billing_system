@@ -22,6 +22,14 @@ export type Answer = {
   lastSynced: string | null;
 };
 export class SessionExpired extends Error {}
+export class AnalyticsApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
 export async function request<T>(
   base: string,
   path: string,
@@ -30,7 +38,7 @@ export async function request<T>(
 ): Promise<T> {
   const response = await fetch(`${base}/api${path}`, {
     method: body === undefined ? 'GET' : 'POST',
-    credentials: token ? 'omit' : 'include',
+    credentials: 'omit',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -41,7 +49,8 @@ export async function request<T>(
   const data = await response.json();
   if (response.status === 401 || response.status === 403)
     throw new SessionExpired(data.error || 'Sign in again.');
-  if (!response.ok) throw new Error(data.error || 'Request failed. Try again.');
+  if (!response.ok)
+    throw new AnalyticsApiError(response.status, data.error || 'Request failed. Try again.');
   return data as T;
 }
 export function freshness(lastSync: string | null, now = Date.now()) {

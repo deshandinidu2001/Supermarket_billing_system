@@ -14,6 +14,7 @@ import { Reports } from '../services/reports';
 import { AppError } from '../services/errors';
 import { Backups, verifyBackup } from './backup';
 import { CloudSync } from './cloud-sync';
+import { OwnerAnalytics } from './owner-analytics';
 import { authenticateBackupOwner } from './recovery';
 import {
   customerPaymentHtml,
@@ -34,6 +35,7 @@ let store: Store,
 let mainWindow: BrowserWindow | null = null;
 let recovering = false;
 let cloud: CloudSync;
+let ownerAnalytics: OwnerAnalytics;
 let timer: ReturnType<typeof setInterval> | undefined;
 const devUrl = process.env.VITE_DEV_SERVER_URL;
 app.setName('Ajith Super Market');
@@ -56,6 +58,7 @@ const log = (error: unknown) => {
   }
 };
 function connect() {
+  ownerAnalytics?.dispose();
   store = new Store(join(root, 'ajith.db'));
   if (store.integrity() !== 'ok') throw new AppError('integrityFailed');
   seed(store, !!devUrl || process.env.POS_DEMO === '1' || process.argv.includes('--seed'));
@@ -67,6 +70,7 @@ function connect() {
   reports = new Reports(store, auth);
   backups = new Backups(store, auth);
   cloud = new CloudSync(store);
+  ownerAnalytics = new OwnerAnalytics(auth, cloud);
 }
 async function cloudAction<T>(fn: () => Promise<T>): Promise<T> {
   try {
@@ -89,6 +93,37 @@ async function dispatch(action: Action, raw: unknown): Promise<unknown> {
   )
     auth.authorize(action);
   switch (action) {
+    case 'analyticsStatus':
+      schemas.analyticsStatus.parse(raw);
+      return ownerAnalytics.status();
+    case 'analyticsLogin':
+      return ownerAnalytics.login(schemas.analyticsLogin.parse(raw));
+    case 'analyticsLogout':
+      schemas.analyticsLogout.parse(raw);
+      return ownerAnalytics.logout();
+    case 'analyticsSelectStore':
+      return ownerAnalytics.select(schemas.analyticsSelectStore.parse(raw).storeId);
+    case 'analyticsData':
+      return ownerAnalytics.data(schemas.analyticsData.parse(raw));
+    case 'analyticsSale':
+      return ownerAnalytics.sale(schemas.analyticsSale.parse(raw).saleId);
+    case 'analyticsQuestion':
+      return ownerAnalytics.question(schemas.analyticsQuestion.parse(raw).question);
+    case 'analyticsHistory':
+      schemas.analyticsHistory.parse(raw);
+      return ownerAnalytics.history();
+    case 'analyticsForecastSettings':
+      return ownerAnalytics.forecast(schemas.analyticsForecastSettings.parse(raw));
+    case 'analyticsDevices':
+      schemas.analyticsDevices.parse(raw);
+      return ownerAnalytics.devices();
+    case 'analyticsRevokeDevice':
+      return ownerAnalytics.revoke(schemas.analyticsRevokeDevice.parse(raw).deviceId);
+    case 'analyticsLink':
+      schemas.analyticsLink.parse(raw);
+      return ownerAnalytics.link();
+    case 'analyticsExport':
+      return ownerAnalytics.export(schemas.analyticsExport.parse(raw));
     case 'cloudStatus':
       schemas.cloudStatus.parse(raw);
       auth.owner();
@@ -115,7 +150,9 @@ async function dispatch(action: Action, raw: unknown): Promise<unknown> {
       return auth.cashierAccounts();
     case 'pinLogin': {
       const d = schemas.pinLogin.parse(raw);
-      return auth.loginPin(d.id, d.pin);
+      const user = auth.loginPin(d.id, d.pin);
+      ownerAnalytics.clear();
+      return user;
     }
     case 'setCashierPin': {
       const d = schemas.setCashierPin.parse(raw);
@@ -150,10 +187,13 @@ async function dispatch(action: Action, raw: unknown): Promise<unknown> {
       return backups.verifyLatest();
     case 'login': {
       const d = schemas.login.parse(raw);
-      return auth.login(d.username, d.password);
+      const user = auth.login(d.username, d.password);
+      ownerAnalytics.clear();
+      return user;
     }
     case 'logout':
       schemas.logout.parse(raw);
+      ownerAnalytics.clear();
       return auth.logout();
     case 'activity':
       schemas.activity.parse(raw);
@@ -281,7 +321,10 @@ async function dispatch(action: Action, raw: unknown): Promise<unknown> {
       return backups.backup(schemas.backup.parse(raw).choose_folder);
     case 'restore': {
       schemas.restore.parse(raw);
-      const restored = await backups.restore(() => cloud.stop(true));
+      const restored = await backups.restore(() => {
+        ownerAnalytics.dispose();
+        return cloud.stop(true);
+      });
       if (restored) {
         connect();
         store.audit(null, 'restore');
@@ -495,6 +538,7 @@ else {
     if (quitting) return;
     event.preventDefault();
     quitting = true;
+    ownerAnalytics?.dispose();
     if (timer) clearInterval(timer);
     void (cloud?.stop() ?? Promise.resolve()).catch(log).finally(() => {
       try {
