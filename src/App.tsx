@@ -376,12 +376,7 @@ function Shell() {
             ))}
         </nav>
         <div className="sidebar-footer">
-          <div className="offline-dot" />
-          <div>
-            <strong>{t('offline')}</strong>
-            <small>{data?.settings.counter_id ?? 'C1'}</small>
-          </div>
-          <ShieldCheck size={17} />
+          <LanguageButton />
         </div>
       </aside>
       <div className="main-shell">
@@ -419,8 +414,6 @@ function Shell() {
             <strong>{t(`nav.${current}`)}</strong>
           </div>
           <div className="header-right">
-            <LanguageButton />
-            <span className="header-divider" />
             <Button variant="ghost" size="icon" onClick={toggle} aria-label={t('theme')}>
               {dark ? <Sun size={19} /> : <Moon size={19} />}
             </Button>

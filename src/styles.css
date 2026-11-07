@@ -458,24 +458,12 @@ textarea::placeholder {
   border-top: 1px solid var(--line);
   background: var(--panel);
 }
-.offline-dot {
-  height: 7px;
-  width: 7px;
-  background: #2b986b;
-  border-radius: 50%;
-}
-.sidebar-footer strong {
-  font-size: 10px;
-  color: var(--green);
-  display: block;
-}
-.sidebar-footer small {
-  font-size: 10px;
-  color: var(--muted);
-}
-.sidebar-footer > svg {
-  margin-left: auto;
-  color: var(--muted);
+.sidebar-footer .language-button {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 11px;
 }
 .main-shell {
   margin-left: 218px;
