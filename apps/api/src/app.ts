@@ -412,9 +412,9 @@ storeRouter.get(
     if (!sale) throw fail(404, 'Sale not found.');
     res.json({
       sale,
-      items: data.sale_items?.filter((i) => i.sale_id === id),
-      payments: data.payments?.filter((p) => p.sale_id === id),
-      returns: data.returns?.filter((r) => r.sale_id === id),
+      items: (data.sale_items ?? []).filter((i) => i.sale_id === id),
+      payments: (data.payments ?? []).filter((p) => p.sale_id === id),
+      returns: (data.returns ?? []).filter((r) => r.sale_id === id),
     });
   }),
 );

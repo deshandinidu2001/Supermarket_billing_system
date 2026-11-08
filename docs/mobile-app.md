@@ -1,6 +1,12 @@
 # Ajith Owner mobile app
 
-The native Expo companion uses the same analytics API and cloud owner account as **POS → Analytics**. It includes horizontal Overview, Sales, Inventory, Forecasts, AI analyst, Alerts and Connection tabs. There is no browser dashboard dependency or mobile web target.
+The native Expo companion uses the same analytics API and cloud owner account as **POS → Analytics**. It includes horizontal Overview, Sales, Inventory, Forecasts, AI analyst, Alerts and Connection tabs. A local browser preview is available for development; the separate owner browser dashboard remains removed.
+
+## Local browser preview
+
+Start the local analytics API on port 4311, then run `npm run web --prefix apps/mobile`. Open `http://localhost:8082` and keep the prefilled server address. The Expo development server forwards same-origin API calls to the fixed local backend. Other browser origins are rejected; production API browser access remains disabled.
+
+The browser preview keeps its session and cached summaries only in memory, so reloading signs out. Native Android/iOS builds continue to use OS SecureStore.
 
 ## Development
 

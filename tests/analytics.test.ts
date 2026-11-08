@@ -6,10 +6,14 @@ import {
   localDay,
   groupTrend,
 } from '../packages/analytics/engine';
-import { csv, freshness } from '../packages/analytics/client';
+import { csv, displayValue, freshness } from '../packages/analytics/client';
 import { labels } from '../packages/analytics/locales';
 import { ownerCache } from '../packages/analytics/secure-cache';
 describe('owner analytics', () => {
+  it('formats measured stock without floating-point artifacts and keeps money in cents', () => {
+    expect(displayValue('quantity', 26.031999999999996)).toBe('26.032');
+    expect(displayValue('revenue', 12345)).toBe('Rs. 123.45');
+  });
   it('aggregates daily trends without losing values across calendar boundaries', () => {
     const rows = [
       { date: '2026-12-31', revenue: 100, profit: 30 },

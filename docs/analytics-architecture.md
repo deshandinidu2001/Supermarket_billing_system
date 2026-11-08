@@ -33,7 +33,7 @@ The desktop saves an encrypted external high-water mark before deleting acknowle
 
 Before an application restore replaces SQLite, the worker drains its in-flight request, stops and marks the external vault as restored. On reconnect it requires an owner rebuild. External database replacement is also checked against the encrypted generation, lineage and sequence high-water mark. This detects ordinary rollback/replacement but is not tamper-proof against replacement of both the database and its encrypted vault together.
 
-The owner chooses Rebuild cloud copy and confirms replacement. The server switches the device to a fresh stream generation; the desktop rematerializes its current snapshot. Old cloud reports remain visible until the replacement end marker. If enrollment/reset or credential storage is interrupted, reconnect/rebuild from desktop settings; never manually delete outbox rows to bypass a missing sequence. Keep the desktop's safety backup and verify reporting totals after a restore.
+The owner chooses Rebuild cloud copy and confirms replacement. The server switches the device to a fresh stream generation; the desktop rematerializes its current snapshot. Old cloud reports remain visible until the replacement end marker. If enrollment/reset or credential storage is interrupted, reconnect/rebuild from **POS → Analytics → Connection**; never manually delete outbox rows to bypass a missing sequence. Keep the desktop's safety backup and verify reporting totals after a restore.
 
 Device revocation is available through POS → Analytics → Connection or the native mobile Connection tab when the API is reachable. Normal billing is unaffected.
 

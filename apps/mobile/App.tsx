@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from './src/storage';
 import {
   ScrollView,
   View,
@@ -10,6 +10,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -116,7 +117,11 @@ export default function App() {
 function OwnerApp() {
   const [session, setSession] = useState<Session>(),
     [ready, setReady] = useState(false),
-    [base, setBase] = useState(process.env.EXPO_PUBLIC_API_URL ?? ''),
+    [base, setBase] = useState(
+      Platform.OS === 'web' && typeof window !== 'undefined'
+        ? window.location.origin
+        : (process.env.EXPO_PUBLIC_API_URL ?? ''),
+    ),
     [email, setEmail] = useState(''),
     [password, setPassword] = useState('');
   const [language, setLanguage] = useState<'en' | 'si'>('en'),

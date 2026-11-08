@@ -276,6 +276,9 @@ test('POS analytics tabs, direct pairing, offline gate, local checkout and sessi
       if (/^https?:/.test(r.url())) rendererRequests.push(r.url());
     });
     page.on('pageerror', (e) => errors.push(e.message));
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
     await page.getByLabel('Username', { exact: true }).fill('owner');
     await page.getByLabel('Password', { exact: true }).fill('ajith123');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -338,6 +341,19 @@ test('POS analytics tabs, direct pairing, offline gate, local checkout and sessi
       .click();
     await page.getByRole('heading', { name: 'Top 5 products by quantity' }).waitFor();
     await page.getByRole('tab', { name: 'Sales', exact: true }).click();
+    const sales = await page.evaluate(() =>
+      window.pos.invoke('analyticsData', { from: '2026-01-01', to: '2026-12-31' }),
+    );
+    assert(sales.ok && sales.data.report.sales.length > 0);
+    const sale = await api(
+      `/stores/${owner.store}/sales/${sales.data.report.sales[0].id}`,
+      undefined,
+      owner.token,
+    );
+    assert.equal(sale.status, 200);
+    assert(Array.isArray(sale.data.items));
+    assert(Array.isArray(sale.data.payments));
+    assert.deepEqual(sale.data.returns, [], 'a store with no returns must return an empty list');
     await page.locator('.oa-row-link').first().click();
     await page.getByRole('dialog').waitFor();
     await page.keyboard.press('Escape');
@@ -373,9 +389,11 @@ test('POS analytics tabs, direct pairing, offline gate, local checkout and sessi
     await page.locator('.oa-metrics').waitFor();
     await desktop.evaluate(({ BrowserWindow }) => {
       const win = BrowserWindow.getAllWindows()[0];
+      win.unmaximize();
       win.setMinimumSize(0, 0);
       win.setSize(390, 844);
     });
+    await page.waitForFunction(() => innerWidth <= 390);
     await page.screenshot({
       path: resolve('../../test-results/pos-analytics-small.png'),
       fullPage: true,
@@ -395,8 +413,8 @@ test('POS analytics tabs, direct pairing, offline gate, local checkout and sessi
     assert.deepEqual(errors, []);
   } catch (error) {
     const page = await desktop.firstWindow();
-    console.error('Original POS analytics test failure',error);
-    console.log('POS failure state',(await page.locator('body').innerText()).slice(0,3800));
+    console.error('Original POS analytics test failure', error);
+    console.log('POS failure state', (await page.locator('body').innerText()).slice(0, 3800));
     throw error;
   } finally {
     await desktop.close();

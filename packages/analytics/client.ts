@@ -98,8 +98,10 @@ const moneyKeys = new Set([
   'profit',
 ]);
 export function displayValue(key: string, value: unknown) {
-  return typeof value === 'number' && moneyKeys.has(key)
-    ? money(value)
+  return typeof value === 'number'
+    ? moneyKeys.has(key)
+      ? money(value)
+      : value.toLocaleString('en-LK', { maximumFractionDigits: 3 })
     : typeof value === 'object'
       ? JSON.stringify(value)
       : String(value ?? '—');

@@ -235,6 +235,11 @@
 .oa-section-heading h2 {
   margin: 0;
 }
+.oa-section-heading select {
+  width: auto;
+  min-width: 130px;
+  flex: 0 0 auto;
+}
 .oa-section-heading .search-box {
   flex: 1;
   max-width: 450px;
